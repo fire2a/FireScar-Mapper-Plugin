@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/plugins/example" >
+        <file>icon.png</file>
+        <file>images/diagrama plugin.png</file>
+    </qresource>
+</RCC>
