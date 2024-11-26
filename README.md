@@ -1,6 +1,6 @@
 # Automatic burned area mapping approach using Deep Learning 
 
-#### Ian Wulff-Limongi, Jaime Carrasco, Cristobal Pais, Alejandro Miranda and Andres Weintraub
+#### Ian Wulff-Limongi, Jaime Carrasco, Cristobal Pais, Alejandro Miranda, Andres Weintraub, Carla Vairetti and Diego Terán
 ---
 #### Project on automatic recognition of fire scars using LANDSAT's satellite imagery applying the U-Net model
 ---

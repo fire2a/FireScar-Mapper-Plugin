@@ -621,6 +621,13 @@ class LayerSelectionDialog(QDialog):
         # Añadir al diálogo la opción de seleccionar el archivo .shp
         self.shp_button = QPushButton("Select Shapefile")
         self.shp_button.clicked.connect(self.select_shp_file)
+        self.shp_button.setVisible(False)  # Ocultar inicialmente
+
+        # Campo de texto para mostrar la ruta seleccionada del archivo .shp
+        self.shp_display = QTextEdit(self)
+        self.shp_display.setReadOnly(True)
+        self.shp_display.setPlaceholderText("Shapefile will be displayed here...")
+        self.shp_display.setVisible(False)  # Ocultar inicialmente
 
         # Campo de texto para mostrar las rutas seleccionadas de imágenes pre-incendio
         self.pre_fire_display = QTextEdit(self)
@@ -632,15 +639,11 @@ class LayerSelectionDialog(QDialog):
         self.post_fire_display.setReadOnly(True)
         self.post_fire_display.setPlaceholderText("Post-fire images will be displayed here...")
 
-        # Campo de texto para mostrar la ruta seleccionada del archivo .shp
-        self.shp_display = QTextEdit(self)
-        self.shp_display.setReadOnly(True)
-        self.shp_display.setPlaceholderText("Shapefile will be displayed here...")
-
         # Selector para "Already cropped images" (True o False)
         self.cropped_label = QLabel("Already cropped images:")
         self.cropped_combo = QComboBox(self)
         self.cropped_combo.addItems(["False", "True"])
+        self.cropped_combo.currentTextChanged.connect(self.update_shapefile_visibility)  # Actualizar visibilidad
 
         # Selector para "Model Scale" (AS o 128)
         self.scale_label = QLabel("Model Scale:")
@@ -658,14 +661,15 @@ class LayerSelectionDialog(QDialog):
 
         left_layout.addWidget(self.post_fire_button)
         left_layout.addWidget(self.post_fire_display)
-        # Añadir esto al layout
-        left_layout.addWidget(self.shp_button)
-        left_layout.addWidget(self.shp_display)
         
         left_layout.addWidget(self.cropped_label)
         left_layout.addWidget(self.cropped_combo)
         left_layout.addWidget(self.scale_label)
         left_layout.addWidget(self.scale_combo)
+
+        # Agregar shapefile solo si las imágenes no están recortadas
+        left_layout.addWidget(self.shp_button)
+        left_layout.addWidget(self.shp_display)
 
         left_layout.addWidget(self.run_button)
 
@@ -679,6 +683,10 @@ class LayerSelectionDialog(QDialog):
         # Almacenar las rutas de los archivos seleccionados
         self.pre_fire_files = []
         self.post_fire_files = []
+        self.shp_file = None
+
+        # Llama al método para establecer la visibilidad inicial
+        self.update_shapefile_visibility(self.cropped_combo.currentText())  # Establece según el valor inicial
 
     def get_description(self):
         """Obtener la descripción del plugin en formato HTML."""
@@ -756,19 +764,24 @@ class LayerSelectionDialog(QDialog):
         if self.shp_file:
             self.shp_display.setText(self.shp_file)
 
+    def update_shapefile_visibility(self, value):
+        """Actualizar la visibilidad del selector de shapefile según la selección del combo."""
+        is_cropped = value == "True"
+        self.shp_button.setVisible(not is_cropped)
+        self.shp_display.setVisible(not is_cropped)
 
     def run_fire_scar_mapping(self):
         """Ejecutar el procesamiento una vez seleccionadas las imágenes."""
         pre_fire_files = self.pre_fire_files
         post_fire_files = self.post_fire_files
-        shp_file = self.shp_file  # Añadir el archivo .shp
+        shp_file = self.shp_file if self.cropped_combo.currentText() == "False" else None
 
         already_cropped = self.cropped_combo.currentText() == "True"
         model_scale = self.scale_combo.currentText()
 
-        # Verificar que se hayan seleccionado imágenes y el shapefile
-        if not pre_fire_files or not post_fire_files or not shp_file:
-            QMessageBox.warning(self, "Error", "Please select both pre-fire, post-fire images and a shapefile.")
+        # Verificar que se hayan seleccionado imágenes
+        if not pre_fire_files or not post_fire_files or (not already_cropped and not shp_file):
+            QMessageBox.warning(self, "Error", "Please select all required inputs.")
             return
 
         # Crear un feedback para mostrar el progreso y los mensajes
@@ -780,13 +793,12 @@ class LayerSelectionDialog(QDialog):
         parameters = {
             'BeforeRasters': pre_fire_files,
             'AfterRasters': post_fire_files,
-            'Shapefile': shp_file,  # Agregar shapefile a los parámetros
+            'Shapefile': shp_file,
             'AlreadyCropped': already_cropped,
             'ModelScale': model_scale,
             'OutputScars': os.path.join(os.path.dirname(__file__), f'results/{model_scale}', 'OutputScar.tif')
         }
 
-        # Pasamos el feedback para evitar el error
         scar_mapper.main(parameters, context=None, feedback=feedback)
 
         feedback.pushInfo("Fire scar mapping process completed successfully.")
