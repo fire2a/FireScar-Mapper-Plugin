@@ -40,3 +40,44 @@ In the Table 1 can be seen the results for each model, AS and 128.
 Finallly, some highlights of the models' performance can be seen:
 
 <img src="images/performance_sum.jpg" width="732" height="704">
+
+### Plugin Usage Instructions
+
+To use the plugin in QGIS, follow the steps below:
+
+#### Step 1: Clone the Repository
+Clone this repository into the QGIS plugins folder. On most systems, the folder is located at:
+
+`C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
+
+Alternatively, you can clone the repository into any folder and create a symbolic link to the QGIS plugins folder.
+
+#### Step 2: Prepare the Plugin Resources
+Using the `OSGeo4W Shell` program, you need to create the `resources.py` file required by the plugin. Follow these steps:
+
+1. Navigate to the plugin folder location:
+   ```bash
+   cd <path_to_plugin_folder>
+   
+2. Ensure the correct virtual environments are activated by running the following commands:
+   - py3_env
+   - qt5_env
+     
+3. Generate the resources.py file from the resources.qrc file:
+   - pyrcc5 resources.qrc -o resources.py
+
+#### Step 3: Enable the Plugin
+1) Restart QGIS if it was already open.
+2) Open the Plugins menu and navigate to the Manage and Install Plugins option.
+3) Find the plugin "Fire Scar Mapper" in the list and enable it.
+
+#### Step 4: Use the Plugin
+Once the plugin is enabled, follow the interface prompts to:
+
+- Select pre- and post-fire images.
+(If the images are not cropped) Provide a shapefile with fire scar boundaries or ignition points.
+- Choose the model scale (AS or 128).
+- Indicate whether the input images are already cropped.
+- Run the plugin to generate fire scars directly within QGIS.
+  
+The plugin will generate georeferenced raster layers and organize them into groups for analysis.(The generated raster files will be stored on "/results" inside the plugin folder)
