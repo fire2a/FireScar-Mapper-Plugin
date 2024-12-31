@@ -15,7 +15,7 @@ python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
 # pip install -r requirements.txt
-pip install torchvision
+# pip install rasterio geopandas
 
 # install is symlink
 cd ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins
