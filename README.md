@@ -1,5 +1,28 @@
 # Automatic burned area mapping approach using Deep Learning 
 
+## quickstart
+### development
+```bash
+sudo apt install pytorch # python3-venv python3-pip qgis qgis-grass
+
+cd ~/source/fire
+git clone git@github.com:fire2a/FireScar-Mapper-Plugin.git scar-mapper
+cd scar-mapper
+
+python3 -m venv .venv --system-site-packages
+source .venv/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+
+# install is symlink
+cd ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins
+ln -s ~/source/fire/scar-mapper/firescarmapper .
+
+# run in .venv
+qgis
+```
+
+
 #### Ian Wulff-Limongi, Jaime Carrasco, Cristobal Pais, Alejandro Miranda, Andres Weintraub, Carla Vairetti and Diego Terán
 ---
 #### Project on automatic recognition of fire scars using LANDSAT's satellite imagery applying the U-Net model
