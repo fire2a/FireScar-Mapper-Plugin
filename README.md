@@ -2,8 +2,10 @@
 
 ## quickstart
 ### development
+Tested on debian bookworm
 ```bash
-sudo apt install pytorch # python3-venv python3-pip qgis qgis-grass
+# pytorch, venv, pip, qgis installed?
+sudo apt install python3-torch python3-torchvision python3-venv python3-pip qgis qgis-grass
 
 cd ~/source/fire
 git clone git@github.com:fire2a/FireScar-Mapper-Plugin.git scar-mapper
@@ -12,7 +14,8 @@ cd scar-mapper
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+# pip install -r requirements.txt
+pip install torchvision
 
 # install is symlink
 cd ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins
