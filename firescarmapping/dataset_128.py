@@ -3,7 +3,6 @@ import torch
 
 from torchvision import transforms
 from .parameters import LS_max128, LI_min128, mean_128, std_128
-import rasterio as rio 
 from osgeo import gdal
 from scipy.interpolate import NearestNDInterpolator
         
@@ -53,8 +52,7 @@ class firescardataset():
                     else: 
                         imgdata[k-1][imgdata[k-1]<LI_min128[k-1]]=mean_128[k-1]
             return imgdata
-        #imgfile = rio.open(self.imgfiles[idx])
-        #imgpre=rio.open(self.imgprefiles[idx])
+        
         imgdata1 =  self.imgfiles[idx]
         imgdatapre = self.imgprefiles[idx]
         imgdata=np.concatenate((imgdata1, imgdatapre), axis=0)
