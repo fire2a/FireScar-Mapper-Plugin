@@ -51,10 +51,10 @@ from geopandas import GeoDataFrame
 
 class ProcessingAlgorithm(QgsProcessingAlgorithm):    
     def main(self, parameters, context, feedback):
-        before_paths, burnt_paths, shp_file, datatype, cropped = parameters['BeforeRasters'], parameters['AfterRasters'], parameters['Shapefile'], parameters['ModelScale'], parameters['AlreadyCropped']
+        before_paths, burnt_paths, datatype = parameters['BeforeRasters'], parameters['AfterRasters'], parameters['ModelScale']
 
         not_cropped_paths = before_paths + burnt_paths
-        before, burnt, cropped_before_paths, cropped_burnt_paths = [], [], [], []
+        before, burnt = [], []
         
         results_dir = os.path.join(os.path.dirname(__file__), 'results')
         model_scale_dir = os.path.join(results_dir, datatype)
@@ -68,63 +68,14 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             os.makedirs(model_scale_dir)
             feedback.pushInfo(f"Created directory for specified model at: {model_scale_dir}")
         
-        
+        #ImgPosF_CL-BI_ID74101_u350_19980330_clip
         for i in range(len(before_paths)):
             before_name = parameters['BeforeRasters'][i].split("/")[-1]
             burnt_name = parameters['AfterRasters'][i].split("/")[-1]
-            image_id = before_name.split('_')[2]  # Suponiendo que el ID está en la tercera parte del nombre
             
-            if cropped == False:
-                # Obtener las coordenadas desde el archivo .shp usando el ID de la imagen
-                if datatype == "AS":
-                    bounds = self.get_bounds_from_shp(shp_file, image_id)
+            before.append(QgsRasterLayer(parameters['BeforeRasters'][i], before_name, "gdal"))
+            burnt.append(QgsRasterLayer(parameters['AfterRasters'][i], burnt_name, "gdal"))
                 
-                # Generar rutas para las imágenes recortadas
-                cropped_before_path = os.path.join(os.path.dirname(__file__), f'results/{datatype}', before_name.replace(".tif","_clip.tif"))
-                cropped_before_paths.append(cropped_before_path)
-                #feedback.pushInfo(f"Cropping before image to: {cropped_before_path}")
-                cropped_burnt_path = os.path.join(os.path.dirname(__file__), f'results/{datatype}', burnt_name.replace(".tif","_clip.tif"))
-                cropped_burnt_paths.append(cropped_burnt_path)
-                #feedback.pushInfo(f"Cropping burnt image to: {cropped_burnt_path}")
-               
-                # Recortar las imágenes usando las coordenadas
-                
-                if datatype == "AS":
-                    self.crop_image_with_bounds(before_paths[i], cropped_before_path, bounds)
-                    #feedback.pushInfo(f"Checking cropped before image at: {cropped_before_path}")
-                    if not os.path.exists(cropped_before_path):
-                        raise QgsProcessingException(f"Failed to crop before image: {cropped_before_path}")
-
-                    self.crop_image_with_bounds(burnt_paths[i], cropped_burnt_path, bounds)
-                    #feedback.pushInfo(f"Checking cropped burnt image at: {cropped_burnt_path}")
-                    if not os.path.exists(cropped_burnt_path):
-                        raise QgsProcessingException(f"Failed to crop burnt image: {cropped_burnt_path}")
-                
-                else:
-                    self.cropping128_with_ignition_point(shp_file, before_paths[i], cropped_before_path, image_id)
-                    #feedback.pushInfo(f"Checking cropped before image at: {cropped_before_path}")
-                    if not os.path.exists(cropped_before_path):
-                        raise QgsProcessingException(f"Failed to crop before image: {cropped_before_path}")
-                    
-                    self.cropping128_with_ignition_point(shp_file, burnt_paths[i], cropped_burnt_path, image_id)
-                    #feedback.pushInfo(f"Checking cropped burnt image at: {cropped_burnt_path}")
-                    if not os.path.exists(cropped_burnt_path):
-                        raise QgsProcessingException(f"Failed to crop burnt image: {cropped_burnt_path}")
-                
-
-                # Cargar las imágenes recortadas como capas de QGIS
-                before.append(QgsRasterLayer(cropped_before_path, before_name.replace(".tif","_clip.tif"), "gdal"))
-                burnt.append(QgsRasterLayer(cropped_burnt_path, burnt_name.replace(".tif","_clip.tif"), "gdal"))
-            else:
-                before.append(QgsRasterLayer(parameters['BeforeRasters'][i], before_name, "gdal"))
-                burnt.append(QgsRasterLayer(parameters['AfterRasters'][i], burnt_name, "gdal"))
-                
-        if cropped == False:
-            cropped_paths = cropped_before_paths + cropped_burnt_paths
-            if not os.path.exists(cropped_before_path):
-                raise QgsProcessingException(f"Cropped image not found: {cropped_before_path}")
-            if not os.path.exists(cropped_burnt_path):
-                raise QgsProcessingException(f"Cropped image not found: {cropped_burnt_path}")
         
         # Asegurarse de que las capas sean listas de QgsRasterLayer
         if not isinstance(before, list) or not isinstance(burnt, list):
@@ -134,48 +85,35 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("The number of before and burnt rasters must be the same")
         
         rasters = []
-        if cropped == False:
-            for i, layer in enumerate(before + burnt):
-                adict = {
-                    "type": "before" if i < len(before) else "burnt",
-                    "id": i,
-                    "qid": layer.id(),
-                    "name": layer.name()[8:-9],
-                    "data": self.get_rlayer_data(layer),
-                    "layer": layer,
-                    "path": cropped_paths[i],
-                    "not_cropped_path": not_cropped_paths[i],
-                    "output_path":os.path.join(model_scale_dir, f"FireScar_{layer.name()[8:-9]}.tif")
-                }
-                adict.update(self.get_rlayer_info(layer))
-                rasters += [adict]
-               
-        else:
-            for i, layer in enumerate(before + burnt):
-                adict = {
-                    "type": "before" if i < len(before) else "burnt",
-                    "id": i,
-                    "qid": layer.id(),
-                    "name": layer.name()[8:-9],
-                    "data": self.get_rlayer_data(layer),
-                    "layer": layer,
-                    "path": not_cropped_paths[i],
-                    "not_cropped_path": not_cropped_paths[i],
-                    "output_path":os.path.join(model_scale_dir, f"FireScar_{layer.name()[8:-9]}.tif")
-                }
-                adict.update(self.get_rlayer_info(layer))
-                rasters += [adict]
+        
+        for i, layer in enumerate(before + burnt):
+            basename = os.path.splitext(os.path.basename(layer.source()))[0]
+            adict = {
+                "type": "before" if i < len(before) else "burnt",
+                "id": i,
+                "qid": layer.id(),
+                "name": os.path.splitext(layer.name())[0],
+                "data": self.get_rlayer_data(layer),
+                "layer": layer,
+                "path": not_cropped_paths[i],
+                "not_cropped_path": not_cropped_paths[i],
+                "output_path": os.path.join(model_scale_dir, f"FireScar_{basename}.tif")
+            }
+            adict.update(self.get_rlayer_info(layer))
+            rasters += [adict]
 
         before_files, after_files, before_files_data, after_files_data = [], [], [], []
       
         #Order rasters
-        for i in range(len(rasters)//2):
-            before_files.append(rasters[i])
-            before_files_data.append(before_files[i]['data'])
-            for j in range(len(rasters)//2): #starts iterating from the second half
-                if rasters[i]['name'] == rasters[j + (len(rasters)//2)]['name']:
-                    after_files.append(rasters[j + (len(rasters)//2)])
-                    after_files_data.append(after_files[i]['data'])
+        if len(rasters) % 2 != 0:
+            raise ValueError("El número total de capas debe ser par (pares de imágenes previas y posteriores).")
+
+        half = len(rasters) // 2
+        before_files = rasters[:half]
+        after_files = rasters[half:]
+        before_files_data = [r['data'] for r in before_files]
+        after_files_data = [r['data'] for r in after_files]
+
 
         if datatype == "AS":
             model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
@@ -216,7 +154,7 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             
             if before_files[i]['output_path']:
                 
-                group_name = before_files[i]['name'].split("_")[0] + "_" + before_files[i]['name'].split("_")[1] + " (" + datatype + ")"
+                group_name = f"FireScarGroup_{i+1} ({datatype})"
                 root = QgsProject.instance().layerTreeRoot()
                 group = root.findGroup(group_name)
                 if not group:
@@ -284,108 +222,7 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         except requests.exceptions.RequestException as e:
             # Manejo de cualquier error que pueda ocurrir durante la solicitud
             feedback.pushInfo(f"Failed to download model: {str(e)}")
-    
-    def get_bounds_from_shp(self, shp_file, image_id):
-        """Buscar las coordenadas de recorte en el archivo .shp usando el ID de la imagen."""
-        # Leer el archivo .shp
-        shapefile = gpd.read_file(shp_file)
-
-        # Filtrar según el ID de la imagen
-        filtered_row = shapefile[shapefile['FireID'] == image_id]
-        
-        if filtered_row.empty:
-            raise ValueError(f"ID {image_id} not found in shapefile")
-
-        # Extraer los valores de las coordenadas
-        north_bound = filtered_row['NorthBound'].values[0]
-        south_bound = filtered_row['SouthBound'].values[0]
-        west_bound = filtered_row['WestBoundL'].values[0]
-        east_bound = filtered_row['EastBoundL'].values[0]
-
-        return north_bound, south_bound, west_bound, east_bound
-   
-    def crop_image_with_bounds(self, image_path, output_path, bounds):
-        """Recortar la imagen usando gdal y las coordenadas obtenidas del archivo .shp."""
-        
-        # Abrir la imagen con gdal
-        image = gdal.Open(image_path)
-        
-        # Definir los parámetros de geotransformación y las coordenadas de recorte
-        gt = image.GetGeoTransform()
-        
-        min_x = bounds[2]  # west_bound
-        max_x = bounds[3]  # east_bound
-        min_y = bounds[1]  # south_bound
-        max_y = bounds[0]  # north_bound
-
-        # Ejecutar el recorte utilizando gdal.Warp
-        gdal.Warp(output_path, 
-                image, 
-                outputBounds=(min_x, min_y, max_x, max_y),
-                dstNodata=0)
-        
-        # Cerrar la imagen de origen
-        image = None
-
-    def cropping128_with_ignition_point(self, shp_file, ipname, output, fire_id):
-        """
-        Clip the satellite raster around the ignition point using the specified size.
-
-        Parameters:
-        shp_file: str - Path to the shapefile containing the ignition point
-        ipname: str - Path to the raster to be clipped
-        output: str - Path to save the cropped raster
-        fire_id: str - The fire ID used to match the ignition point in the shapefile
-        """
-        size = 128
-        # Step 1: Extract the ignition point coordinates from the shapefile using the fire ID
-        ignition_point = self.get_ignition_point_from_shp(shp_file, fire_id)
-
-        # Step 2: Open the input raster to get its geotransform and calculate bounds
-        inDs = gdal.Open(ipname)
-        ulx, xres, xskew, uly, yskew, yres = inDs.GetGeoTransform()
-
-        # Get the coordinates of the ignition point
-        ignition_x, ignition_y = ignition_point
-
-        # Step 3: Calculate the bounds of the cropping window around the ignition point
-        min_x = ignition_x - (size / 2) * xres
-        max_x = ignition_x + (size / 2) * xres
-        min_y = ignition_y + (size / 2) * yres  # yres is negative, hence addition
-        max_y = ignition_y - (size / 2) * yres
-
-        # Step 4: Perform the cropping using gdal.Warp
-        gdal.Warp(output, inDs, outputBounds=(min_x, min_y, max_x, max_y), dstNodata=0)
-
-        # Close the dataset
-        inDs = None
-
-    def get_ignition_point_from_shp(self, shp_file, fire_id):
-        """
-        Extract the ignition point coordinates from the shapefile using the fire ID.
-
-        Parameters:
-        shp_file: str - Path to the shapefile
-        fire_id: str - The fire ID used to filter the correct row
-        
-        Returns:
-        tuple: (longitude, latitude) coordinates of the ignition point
-        """
-        # Read the shapefile
-        gdf = GeoDataFrame.from_file(shp_file)
-
-        # Filter the shapefile using the fire ID
-        filtered_row = gdf[gdf['FireID'] == fire_id]
-
-        if filtered_row.empty:
-            raise ValueError(f"ID {fire_id} not found in the shapefile.")
-
-        # Extract the latitude and longitude from the columns 'Latitude_[' and 'Longitude_'
-        ignition_latitude = filtered_row['Latitude_['].values[0]
-        ignition_longitude = filtered_row['Longitude_'].values[0]
-
-        return ignition_longitude, ignition_latitude    
-
+ 
     def qgis2numpy_dtype(self, qgis_dtype: Qgis.DataType) -> np.dtype:
         """Conver QGIS data type to corresponding numpy data type
         https://raw.githubusercontent.com/PUTvision/qgis-plugin-deepness/fbc99f02f7f065b2f6157da485bef589f611ea60/src/deepness/processing/processing_utils.py
@@ -618,17 +455,6 @@ class LayerSelectionDialog(QDialog):
         self.post_fire_button = QPushButton("Select Post-Fire Images")
         self.post_fire_button.clicked.connect(self.select_post_fire_files)
 
-        # Añadir al diálogo la opción de seleccionar el archivo .shp
-        self.shp_button = QPushButton("Select Shapefile")
-        self.shp_button.clicked.connect(self.select_shp_file)
-        self.shp_button.setVisible(False)  # Ocultar inicialmente
-
-        # Campo de texto para mostrar la ruta seleccionada del archivo .shp
-        self.shp_display = QTextEdit(self)
-        self.shp_display.setReadOnly(True)
-        self.shp_display.setPlaceholderText("Shapefile will be displayed here...")
-        self.shp_display.setVisible(False)  # Ocultar inicialmente
-
         # Campo de texto para mostrar las rutas seleccionadas de imágenes pre-incendio
         self.pre_fire_display = QTextEdit(self)
         self.pre_fire_display.setReadOnly(True)
@@ -638,12 +464,6 @@ class LayerSelectionDialog(QDialog):
         self.post_fire_display = QTextEdit(self)
         self.post_fire_display.setReadOnly(True)
         self.post_fire_display.setPlaceholderText("Post-fire images will be displayed here...")
-
-        # Selector para "Already cropped images" (True o False)
-        self.cropped_label = QLabel("Already cropped images:")
-        self.cropped_combo = QComboBox(self)
-        self.cropped_combo.addItems(["False", "True"])
-        self.cropped_combo.currentTextChanged.connect(self.update_shapefile_visibility)  # Actualizar visibilidad
 
         # Selector para "Model Scale" (AS o 128)
         self.scale_label = QLabel("Model Scale:")
@@ -662,14 +482,8 @@ class LayerSelectionDialog(QDialog):
         left_layout.addWidget(self.post_fire_button)
         left_layout.addWidget(self.post_fire_display)
         
-        left_layout.addWidget(self.cropped_label)
-        left_layout.addWidget(self.cropped_combo)
         left_layout.addWidget(self.scale_label)
         left_layout.addWidget(self.scale_combo)
-
-        # Agregar shapefile solo si las imágenes no están recortadas
-        left_layout.addWidget(self.shp_button)
-        left_layout.addWidget(self.shp_display)
 
         left_layout.addWidget(self.run_button)
 
@@ -683,10 +497,6 @@ class LayerSelectionDialog(QDialog):
         # Almacenar las rutas de los archivos seleccionados
         self.pre_fire_files = []
         self.post_fire_files = []
-        self.shp_file = None
-
-        # Llama al método para establecer la visibilidad inicial
-        self.update_shapefile_visibility(self.cropped_combo.currentText())  # Establece según el valor inicial
 
     def get_description(self):
         """Obtener la descripción del plugin en formato HTML."""
@@ -758,29 +568,15 @@ class LayerSelectionDialog(QDialog):
         if self.post_fire_files:
             self.post_fire_display.setText("\n".join(self.post_fire_files))
 
-    def select_shp_file(self):
-        """Seleccionar el archivo .shp que contiene las coordenadas."""
-        self.shp_file, _ = QFileDialog.getOpenFileName(self, "Select Shapefile", "", "Shapefile (*.shp)")
-        if self.shp_file:
-            self.shp_display.setText(self.shp_file)
-
-    def update_shapefile_visibility(self, value):
-        """Actualizar la visibilidad del selector de shapefile según la selección del combo."""
-        is_cropped = value == "True"
-        self.shp_button.setVisible(not is_cropped)
-        self.shp_display.setVisible(not is_cropped)
-
     def run_fire_scar_mapping(self):
         """Ejecutar el procesamiento una vez seleccionadas las imágenes."""
         pre_fire_files = self.pre_fire_files
         post_fire_files = self.post_fire_files
-        shp_file = self.shp_file if self.cropped_combo.currentText() == "False" else None
 
-        already_cropped = self.cropped_combo.currentText() == "True"
         model_scale = self.scale_combo.currentText()
 
         # Verificar que se hayan seleccionado imágenes
-        if not pre_fire_files or not post_fire_files or (not already_cropped and not shp_file):
+        if not pre_fire_files or not post_fire_files :
             QMessageBox.warning(self, "Error", "Please select all required inputs.")
             return
 
@@ -793,8 +589,6 @@ class LayerSelectionDialog(QDialog):
         parameters = {
             'BeforeRasters': pre_fire_files,
             'AfterRasters': post_fire_files,
-            'Shapefile': shp_file,
-            'AlreadyCropped': already_cropped,
             'ModelScale': model_scale,
             'OutputScars': os.path.join(os.path.dirname(__file__), f'results/{model_scale}', 'OutputScar.tif')
         }
@@ -854,7 +648,6 @@ class FireScarMapper:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('FireScarMapper', message)
-
 
     def add_action(
         self,
@@ -955,7 +748,6 @@ class FireScarMapper:
                 self.tr(u'&Fire Scar Mapper'),
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
