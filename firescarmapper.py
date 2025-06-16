@@ -25,13 +25,12 @@
 # Initialize Qt resources from file resources.py
 # Import the code for the dialog
 from .firescarmapper_dialog import FireScarMapperDialog
-from .layer_selection_tab import LayerSelectionDialog
 
 from .resources import *
 import os.path
 from qgis.core import (Qgis, QgsProcessingAlgorithm,QgsProject, QgsRasterLayer, QgsProcessingException, 
                        QgsSingleBandPseudoColorRenderer, QgsRasterMinMaxOrigin, QgsColorRampShader, QgsRasterShader, QgsStyle, QgsContrastEnhancement)
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 import torch
 from .firescarmapping.model_u_net import model, device
 from .firescarmapping.as_dataset import create_datasetAS
@@ -42,9 +41,10 @@ import os
 from osgeo import gdal, gdal_array
 import requests
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QDockWidget
 
-from .firescarmapper_dialog import FireScarMapperDialog
+
+
 
 class ProcessingAlgorithm(QgsProcessingAlgorithm):    
     def main(self, parameters, context, feedback):
@@ -572,9 +572,15 @@ class FireScarMapper:
         self.first_start = True
 
     def show_layer_selection_dialog(self):
-        """Muestra el diálogo para seleccionar las capas y ejecutar el mapeo."""
-        dialog = FireScarMapperDialog(self.iface)
-        dialog.exec_()
+        if not hasattr(self, 'dlg'):
+            self.dlg = FireScarMapperDialog(self.iface)
+
+            if self.dlg not in self.iface.mainWindow().findChildren(QDockWidget):
+                self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dlg)
+
+        self.dlg.show()
+        self.dlg.raise_()
+        self.dlg.activateWindow()
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -589,19 +595,15 @@ class FireScarMapper:
 
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        scar_mapper = ProcessingAlgorithm()
-        scar_mapper.main({}, self.iface, feedback=self.iface.messageBar())
+        
         
         if self.first_start == True:
             self.first_start = False
             self.dlg = FireScarMapperDialog(self.iface)
 
+        if self.dlg not in self.iface.mainWindow().findChildren(QDockWidget):
+            self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dlg)
         # show the dialog
         self.dlg.show()
-        # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+      
+        

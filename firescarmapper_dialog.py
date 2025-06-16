@@ -22,18 +22,19 @@
  ***************************************************************************/
 """
 
-from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QTabWidget
+from qgis.PyQt.QtWidgets import QDockWidget, QTabWidget, QVBoxLayout, QWidget
 from .tiff_generator_tab import TiffGeneratorTab
 from .layer_selection_tab import LayerSelectionDialog
 
 
-class FireScarMapperDialog(QDialog):
+class FireScarMapperDialog(QDockWidget):
     def __init__(self, iface, parent=None):
         super().__init__(parent)
         self.iface = iface
         self.setWindowTitle("Fire Scar Mapper")
 
         # Layout principal
+        main_widget = QWidget()
         layout = QVBoxLayout()
 
         # Crear el QTabWidget con las pestañas
@@ -43,5 +44,8 @@ class FireScarMapperDialog(QDialog):
 
         # Agregar los tabs al layout
         layout.addWidget(self.tabs)
-        self.setLayout(layout)
+        main_widget.setLayout(layout)
+
+        # Establecer el widget principal del Dock
+        self.setWidget(main_widget)
 
