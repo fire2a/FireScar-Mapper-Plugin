@@ -39,8 +39,12 @@ class FireScarMapperDialog(QDockWidget):
 
         # Crear el QTabWidget con las pestañas
         self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+
         self.tabs.addTab(TiffGeneratorTab(self.iface, self), "Generate Images")
-        self.tabs.addTab(LayerSelectionDialog(self.iface, self), "Generate Fire Scar")
+        self.layer_tab = LayerSelectionDialog(self.iface, self)
+        self.tabs.addTab(self.layer_tab, "Generate Fire Scar")
+
 
         # Agregar los tabs al layout
         layout.addWidget(self.tabs)
@@ -48,4 +52,10 @@ class FireScarMapperDialog(QDockWidget):
 
         # Establecer el widget principal del Dock
         self.setWidget(main_widget)
+    
+    def on_tab_changed(self, index):
+        # Si es la pestaña 1 (segunda), actualiza los ComboBox
+        if index == 1:
+            self.layer_tab.populate_layer_combos()
+
 

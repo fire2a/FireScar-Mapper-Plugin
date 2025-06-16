@@ -30,9 +30,31 @@ from qgis.gui import QgsMapToolEmitPoint
 from qgis.PyQt.QtWidgets import QWidget
 
 import ee
-import tempfile
 import requests
 
+def ensure_results_folder():
+    plugin_dir = os.path.dirname(__file__)
+    results_dir = os.path.join(plugin_dir, "results", "images")
+    os.makedirs(results_dir, exist_ok=True)
+    return results_dir
+
+def get_unique_filepath(base_path):
+    """
+    Si el archivo existe, agrega un sufijo numérico (1), (2), etc., hasta encontrar uno disponible.
+    """
+    if not os.path.exists(base_path):
+        return base_path
+
+    directory, filename = os.path.split(base_path)
+    name, ext = os.path.splitext(filename)
+
+    i = 1
+    while True:
+        new_filename = f"{name} ({i}){ext}"
+        new_path = os.path.join(directory, new_filename)
+        if not os.path.exists(new_path):
+            return new_path
+        i += 1
 
 
 class FireIgnitionTool(QgsMapToolEmitPoint):
@@ -321,9 +343,14 @@ class TiffGeneratorTab(QWidget):
         PREImagen = pref.select(['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
         POSImagen = postf.select(['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
         
-        temp_dir = tempfile.gettempdir()
-        pre_path = os.path.join(temp_dir, f"ImgPreF_{start_date}.tif")
-        post_path = os.path.join(temp_dir, f"ImgPosF_{end_date}.tif")
+        #temp_dir = tempfile.gettempdir()
+        #pre_path = os.path.join(temp_dir, f"ImgPreF_{start_date}.tif")
+        #post_path = os.path.join(temp_dir, f"ImgPosF_{end_date}.tif")
+
+        results_dir = ensure_results_folder()
+        pre_path = get_unique_filepath(os.path.join(results_dir, f"ImgPreF_{start_date}.tif"))
+        post_path = get_unique_filepath(os.path.join(results_dir, f"ImgPosF_{end_date}.tif"))
+
 
         print(f"💾 Descargando imágenes en archivos temporales: {pre_path} y {post_path}")
 

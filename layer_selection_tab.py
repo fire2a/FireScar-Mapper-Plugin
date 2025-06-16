@@ -1,8 +1,9 @@
 import os.path
-from qgis.core import (QgsProcessingFeedback)
+from qgis.core import (QgsProcessingFeedback, QgsProject, QgsRasterLayer)
 from qgis.PyQt.QtWidgets import  QVBoxLayout, QPushButton, QFileDialog, QWidget
 from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QFileDialog, QLabel, QTextEdit, QHBoxLayout, QMessageBox, QComboBox
 
+from .algorithm_firescarmapper import ProcessingAlgorithm
 
 class LayerSelectionDialog(QWidget):
     def __init__(self, iface, parent=None):
@@ -16,12 +17,38 @@ class LayerSelectionDialog(QWidget):
         self.description_label.setHtml(self.get_description())  # Set HTML content
 
         # Selector para imágenes pre-incendio
-        self.pre_fire_button = QPushButton("Select Pre-Fire Images")
-        self.pre_fire_button.clicked.connect(self.select_pre_fire_files)
+        #self.pre_fire_button = QPushButton("Select Pre-Fire Images")
+        #self.pre_fire_button.clicked.connect(self.select_pre_fire_files)
 
         # Selector para imágenes post-incendio
-        self.post_fire_button = QPushButton("Select Post-Fire Images")
+        #self.post_fire_button = QPushButton("Select Post-Fire Images")
+        #self.post_fire_button.clicked.connect(self.select_post_fire_files)
+
+        # Combos para seleccionar capas desde el proyecto
+        self.pre_fire_layer_combo = QComboBox()
+        self.post_fire_layer_combo = QComboBox()
+        self.populate_layer_combos()  # Cargar capas actuales
+
+        # Botones pequeños para seleccionar desde archivos
+        self.pre_fire_button = QPushButton("...")
+        self.pre_fire_button.setFixedWidth(30)
+        self.pre_fire_button.setToolTip("Seleccionar desde archivos")
+        self.pre_fire_button.clicked.connect(self.select_pre_fire_files)
+
+        self.post_fire_button = QPushButton("...")
+        self.post_fire_button.setFixedWidth(30)
+        self.post_fire_button.setToolTip("Seleccionar desde archivos")
         self.post_fire_button.clicked.connect(self.select_post_fire_files)
+
+        # Layouts horizontales que combinan combo + botón
+        self.pre_fire_selector_layout = QHBoxLayout()
+        self.pre_fire_selector_layout.addWidget(self.pre_fire_layer_combo)
+        self.pre_fire_selector_layout.addWidget(self.pre_fire_button)
+
+        self.post_fire_selector_layout = QHBoxLayout()
+        self.post_fire_selector_layout.addWidget(self.post_fire_layer_combo)
+        self.post_fire_selector_layout.addWidget(self.post_fire_button)
+
 
         # Campo de texto para mostrar las rutas seleccionadas de imágenes pre-incendio
         self.pre_fire_display = QTextEdit(self)
@@ -44,11 +71,18 @@ class LayerSelectionDialog(QWidget):
 
         # Layout para la izquierda: selectores de imágenes y campo de texto
         left_layout = QVBoxLayout()
-        left_layout.addWidget(self.pre_fire_button)
+        #left_layout.addWidget(self.pre_fire_button)
+        #left_layout.addWidget(self.pre_fire_display)
+
+        #left_layout.addWidget(self.post_fire_button)
+        #left_layout.addWidget(self.post_fire_display)
+
+        left_layout.addLayout(self.pre_fire_selector_layout)
         left_layout.addWidget(self.pre_fire_display)
 
-        left_layout.addWidget(self.post_fire_button)
+        left_layout.addLayout(self.post_fire_selector_layout)
         left_layout.addWidget(self.post_fire_display)
+
         
         left_layout.addWidget(self.scale_label)
         left_layout.addWidget(self.scale_combo)
@@ -65,6 +99,17 @@ class LayerSelectionDialog(QWidget):
         # Almacenar las rutas de los archivos seleccionados
         self.pre_fire_files = []
         self.post_fire_files = []
+
+    def populate_layer_combos(self):
+        """Fill combobox with layer fromt the actual project."""
+        self.pre_fire_layer_combo.clear()
+        self.post_fire_layer_combo.clear()
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if isinstance(layer, QgsRasterLayer):
+                self.pre_fire_layer_combo.addItem(layer.name(), layer)
+                self.post_fire_layer_combo.addItem(layer.name(), layer)
+
 
     def get_description(self):
         """Obtener la descripción del plugin en formato HTML."""
@@ -140,6 +185,19 @@ class LayerSelectionDialog(QWidget):
         """Ejecutar el procesamiento una vez seleccionadas las imágenes."""
         pre_fire_files = self.pre_fire_files
         post_fire_files = self.post_fire_files
+
+        # Si no se usaron archivos manuales, tomar los paths de las capas seleccionadas
+        if not pre_fire_files:
+            layer = self.pre_fire_layer_combo.currentData()
+            if layer:
+                pre_fire_files = [layer.source()]
+                self.pre_fire_display.setText(layer.source())
+
+        if not post_fire_files:
+            layer = self.post_fire_layer_combo.currentData()
+            if layer:
+                post_fire_files = [layer.source()]
+                self.post_fire_display.setText(layer.source())
 
         model_scale = self.scale_combo.currentText()
 
