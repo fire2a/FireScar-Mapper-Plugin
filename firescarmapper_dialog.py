@@ -38,8 +38,8 @@ class FireScarMapperDialog(QDialog):
 
         # Crear el QTabWidget con las pestañas
         self.tabs = QTabWidget()
-        self.tabs.addTab(TiffGeneratorTab(self.iface), "Generate Images")
-        self.tabs.addTab(LayerSelectionDialog(self.iface), "Generate Fire Scar")
+        self.tabs.addTab(TiffGeneratorTab(self.iface, self), "Generate Images")
+        self.tabs.addTab(LayerSelectionDialog(self.iface, self), "Generate Fire Scar")
 
         # Agregar los tabs al layout
         layout.addWidget(self.tabs)
