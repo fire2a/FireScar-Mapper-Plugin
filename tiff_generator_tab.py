@@ -88,29 +88,29 @@ class TiffGeneratorTab(QWidget):
         layout = QtWidgets.QVBoxLayout()
 
         # Punto de ignición
-        self.label_point = QtWidgets.QLabel("Punto de ignición: No seleccionado")
-        self.btn_select_point = QtWidgets.QPushButton("Seleccionar punto en el mapa")
+        self.label_point = QtWidgets.QLabel("Ignition Point: Not Selected")
+        self.btn_select_point = QtWidgets.QPushButton("Select an Ignition Point on the Map")
         self.btn_select_point.clicked.connect(self.select_point)
 
         # Fechas
-        self.label_start_date = QtWidgets.QLabel("Fecha de inicio:")
+        self.label_start_date = QtWidgets.QLabel("Start Date:")
         self.start_date = QtWidgets.QDateEdit()
         self.start_date.setCalendarPopup(True)
         self.start_date.setDate(QDate.currentDate())
 
-        self.label_end_date = QtWidgets.QLabel("Fecha de término:")
+        self.label_end_date = QtWidgets.QLabel("End Date:")
         self.end_date = QtWidgets.QDateEdit()
         self.end_date.setCalendarPopup(True)
         self.end_date.setDate(QDate.currentDate())
 
         # Área o longitud del recuadro
-        self.label_area = QtWidgets.QLabel("Área estimada del incendio (ha) o longitud del recuadro (m):")
+        self.label_area = QtWidgets.QLabel("Estimated Area of the Wildfire (ha):")
         self.area_input = QtWidgets.QDoubleSpinBox()
         self.area_input.setRange(0, 1000000)
         self.area_input.setSuffix(" ha")
 
         # Botón para generar el TIFF
-        self.btn_generate = QtWidgets.QPushButton("Generar TIFF")
+        self.btn_generate = QtWidgets.QPushButton("Generate Pre and Post Fire Tiff Images")
         self.btn_generate.clicked.connect(self.generate_tiff)
 
         # Agregar widgets al layout
@@ -303,7 +303,7 @@ class TiffGeneratorTab(QWidget):
         area = max(self.area_input.value(), 0.0001)  
         buffer_size = ee.Number(area).log().multiply(3000).max(3000) 
         buffer_size = ee.Number(163673.1).multiply(ee.Number(1).subtract(ee.Number(-0.001157413).multiply(ee.Number(area).pow(0.5259879)).exp()))  
-        #buffer_size = buffer_size.multiply(2)
+        buffer_size = buffer_size.multiply(1.5)
         region = ee.Geometry.Point([self.ignition_point.x(), self.ignition_point.y()]).buffer(buffer_size)
 
         #buffer_size = 1920  # Fixed buffer size: 64 Landsat pixels

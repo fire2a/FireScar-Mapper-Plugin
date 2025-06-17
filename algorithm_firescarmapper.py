@@ -28,7 +28,7 @@
 from .resources import *
 import os.path
 from qgis.core import (Qgis, QgsProcessingAlgorithm,QgsProject, QgsRasterLayer, QgsProcessingException, 
-                       QgsSingleBandPseudoColorRenderer, QgsRasterMinMaxOrigin, QgsColorRampShader, QgsRasterShader, QgsStyle, QgsContrastEnhancement)
+                       QgsSingleBandPseudoColorRenderer, QgsRasterMinMaxOrigin, QgsColorRampShader, QgsRasterShader, QgsStyle, QgsContrastEnhancement, QgsMultiBandColorRenderer)
 from qgis.PyQt.QtCore import QCoreApplication
 import torch
 from .firescarmapping.model_u_net import model, device
@@ -80,6 +80,10 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         
         for i, layer in enumerate(before + burnt):
             basename = os.path.splitext(os.path.basename(layer.source()))[0]
+            feedback.pushInfo(f"layer.id(): {layer.id()}")
+            feedback.pushInfo(f"layer.name(): {layer.name()}")
+            feedback.pushInfo(f"layer.name() 2: {os.path.splitext(layer.name())[0]}")
+
             adict = {
                 "type": "before" if i < len(before) else "burnt",
                 "id": i,
@@ -158,10 +162,15 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
                 if layer_tree:
                     layer_tree.setExpanded(False)
 
+                pre_file_path_name = before_files[i]['name'].split("\\")[-1]
+                pre_file_name = pre_file_path_name.split("_")[-1]
+                post_file_path_name = after_files[i]['name'].split("\\")[-1]
+                post_file_name = post_file_path_name.split("_")[-1]
+
                 self.writeRaster(generated_matrix, before_files[i]['output_path'], before_files[i], feedback)
-                self.addRasterLayer(before_files[i]['output_path'],f"FireScar_{before_files[i]['name']}", group, context)
-                self.addRasterLayer(after_files[i]['not_cropped_path'],f"ImgPosF_{after_files[i]['name']}", group, context)
-                self.addRasterLayer(before_files[i]['not_cropped_path'],f"ImgPreF_{before_files[i]['name']}", group, context)
+                self.addRasterLayer(before_files[i]['output_path'],f"FireScar_{post_file_name}", group, "FireScar", context)
+                self.addRasterLayer(after_files[i]['not_cropped_path'],f"ImgPosF_{post_file_name}", group, "ImgPosF", context)
+                self.addRasterLayer(before_files[i]['not_cropped_path'],f"ImgPreF_{pre_file_name}", group, "ImgPreF", context)
         return {}
         
     
@@ -372,18 +381,16 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Raster written to {file_path}")
 
-    def addRasterLayer(self, file_path, layer_name, group, context):
+    def addRasterLayer(self, file_path, layer_name, group, tif_type, context):
         """Añadir la capa raster al grupo en el proyecto."""
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
-
-        # Añadir la capa al proyecto sin mostrarla
         QgsProject.instance().addMapLayer(layer, False)
         group.addLayer(layer)
 
         # Si el nombre de la capa contiene "FireScar", cambiar el renderer a singleband pseudocolor
-        if "FireScar" in layer_name:
+        if tif_type == "FireScar":
             # Forzar el cálculo de las estadísticas de la banda para obtener los valores correctos
             provider = layer.dataProvider()
             stats = provider.bandStatistics(1, QgsRasterMinMaxOrigin.Estimated)

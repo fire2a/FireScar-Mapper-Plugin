@@ -1,5 +1,5 @@
 import os.path
-from qgis.core import (QgsProcessingFeedback, QgsProject, QgsRasterLayer)
+from qgis.core import (QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsProject)
 from qgis.PyQt.QtWidgets import  QVBoxLayout, QPushButton, QFileDialog, QWidget
 from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QFileDialog, QLabel, QTextEdit, QHBoxLayout, QMessageBox, QComboBox
 
@@ -9,77 +9,61 @@ class LayerSelectionDialog(QWidget):
     def __init__(self, iface, parent=None):
         super().__init__(parent)
         self.iface = iface
-        #self.resize(1000, 600) 
 
-        # Descripción del proceso (añadido)
-        self.description_label = QTextEdit(self)
-        self.description_label.setReadOnly(True)
-        self.description_label.setHtml(self.get_description())  # Set HTML content
-
-        # Selector para imágenes pre-incendio
-        #self.pre_fire_button = QPushButton("Select Pre-Fire Images")
-        #self.pre_fire_button.clicked.connect(self.select_pre_fire_files)
-
-        # Selector para imágenes post-incendio
-        #self.post_fire_button = QPushButton("Select Post-Fire Images")
-        #self.post_fire_button.clicked.connect(self.select_post_fire_files)
-
-        # Combos para seleccionar capas desde el proyecto
+        # Combos to select layer from the project
         self.pre_fire_layer_combo = QComboBox()
         self.post_fire_layer_combo = QComboBox()
-        self.populate_layer_combos()  # Cargar capas actuales
+        self.populate_layer_combos()  
 
-        # Botones pequeños para seleccionar desde archivos
+        # buttons to add a layer from the local system
         self.pre_fire_button = QPushButton("...")
         self.pre_fire_button.setFixedWidth(30)
-        self.pre_fire_button.setToolTip("Seleccionar desde archivos")
+        self.pre_fire_button.setToolTip("Select from local files")
         self.pre_fire_button.clicked.connect(self.select_pre_fire_files)
 
         self.post_fire_button = QPushButton("...")
         self.post_fire_button.setFixedWidth(30)
-        self.post_fire_button.setToolTip("Seleccionar desde archivos")
+        self.post_fire_button.setToolTip("Select from local files")
         self.post_fire_button.clicked.connect(self.select_post_fire_files)
 
-        # Layouts horizontales que combinan combo + botón
+        # Horizontal layouts that combine combo + button
         self.pre_fire_selector_layout = QHBoxLayout()
+        self.pre_fire_label = QLabel("Pre-Fire Image:")
         self.pre_fire_selector_layout.addWidget(self.pre_fire_layer_combo)
         self.pre_fire_selector_layout.addWidget(self.pre_fire_button)
 
         self.post_fire_selector_layout = QHBoxLayout()
+        self.post_fire_label = QLabel("Post-Fire Image:")
         self.post_fire_selector_layout.addWidget(self.post_fire_layer_combo)
         self.post_fire_selector_layout.addWidget(self.post_fire_button)
 
-
-        # Campo de texto para mostrar las rutas seleccionadas de imágenes pre-incendio
+        # Text field to show selected routes of PreFire Images
         self.pre_fire_display = QTextEdit(self)
         self.pre_fire_display.setReadOnly(True)
         self.pre_fire_display.setPlaceholderText("Pre-fire images will be displayed here...")
 
-        # Campo de texto para mostrar las rutas seleccionadas de imágenes post-incendio
+         # Text field to show selected routes of PostFire Images
         self.post_fire_display = QTextEdit(self)
         self.post_fire_display.setReadOnly(True)
         self.post_fire_display.setPlaceholderText("Post-fire images will be displayed here...")
 
-        # Selector para "Model Scale" (AS o 128)
+        # Model scale selector (AS o 128)
         self.scale_label = QLabel("Model Scale:")
         self.scale_combo = QComboBox(self)
         self.scale_combo.addItems(["AS", "128"])
 
-        # Botón para ejecutar el procesamiento
-        self.run_button = QPushButton("Run Fire Scar Mapping")
+        # execute process button
+        self.run_button = QPushButton("Generate Fire Scar")
         self.run_button.clicked.connect(self.run_fire_scar_mapping)
 
-        # Layout para la izquierda: selectores de imágenes y campo de texto
+        # left layout: image selector and text fields
         left_layout = QVBoxLayout()
-        #left_layout.addWidget(self.pre_fire_button)
-        #left_layout.addWidget(self.pre_fire_display)
-
-        #left_layout.addWidget(self.post_fire_button)
-        #left_layout.addWidget(self.post_fire_display)
-
+        
+        left_layout.addWidget(self.pre_fire_label)
         left_layout.addLayout(self.pre_fire_selector_layout)
         left_layout.addWidget(self.pre_fire_display)
 
+        left_layout.addWidget(self.post_fire_label)
         left_layout.addLayout(self.post_fire_selector_layout)
         left_layout.addWidget(self.post_fire_display)
 
@@ -89,14 +73,12 @@ class LayerSelectionDialog(QWidget):
 
         left_layout.addWidget(self.run_button)
 
-        # Layout principal: distribución en dos columnas (selectores a la izquierda, descripción a la derecha)
+        # Principal layout
         main_layout = QHBoxLayout()
-        main_layout.addLayout(left_layout)  # Columna izquierda
-        main_layout.addWidget(self.description_label, stretch=1)  # Columna derecha con descripción
-
+        main_layout.addLayout(left_layout)  
         self.setLayout(main_layout)
 
-        # Almacenar las rutas de los archivos seleccionados
+        # Store routes of selected files
         self.pre_fire_files = []
         self.post_fire_files = []
 
@@ -181,6 +163,7 @@ class LayerSelectionDialog(QWidget):
         if self.post_fire_files:
             self.post_fire_display.setText("\n".join(self.post_fire_files))
 
+
     def run_fire_scar_mapping(self):
         """Ejecutar el procesamiento una vez seleccionadas las imágenes."""
         pre_fire_files = self.pre_fire_files
@@ -222,5 +205,4 @@ class LayerSelectionDialog(QWidget):
         scar_mapper.main(parameters, context=None, feedback=feedback)
 
         feedback.pushInfo("Fire scar mapping process completed successfully.")
-
         self.close()
