@@ -31,6 +31,7 @@ This module enables you to:
 
 The fire scar raster is stored in a `/results` folder within the plugin directory.
 
+The repository of the U-Net models is on this [linl](https://github.com/fire2a/FireScars)
 ---
 
 ## ⚙️ Plugin Usage Instructions
@@ -49,7 +50,7 @@ cd C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugin
 ```
 - Create the symbolik link:
 ```bash
-mklink /D <name of the plugin folder> <path where the repository was cloned>"nombre que quieres que tenga la carpeta" “path de donde clonaste el repo”
+mklink /D <name of the plugin folder> <path where the repository was cloned>
 example: mklink /D FireScarMapper C:\Users\USER\plugins\FireScar-Mapper-Plugin
 ```
 
