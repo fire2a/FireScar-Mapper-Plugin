@@ -31,7 +31,7 @@ This module enables you to:
 
 The fire scar raster is stored in a `/results` folder within the plugin directory.
 
-The repository of the U-Net models is on this [linl](https://github.com/fire2a/FireScars)
+The repository of the U-Net models is on this [link](https://github.com/fire2a/FireScars)
 ---
 
 ## ⚙️ Plugin Usage Instructions
