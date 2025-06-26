@@ -1,0 +1,6 @@
+[general]
+enabled = True
+
+plugin_dependency_1 = torch==2.2.2
+plugin_dependency_2 = earthengine-api==0.1.388
+plugin_dependency_3 = torchvision==0.17.2

@@ -31,6 +31,14 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-    #
+    #Import and execute dependencies handler
+    try:
+        from . import dependencies_handler
+        dependencies_handler.run()
+    except Exception as e:
+        # No falla la carga del plugin si el handler falla por algún motivo
+        import traceback
+        print("Dependency handler failed:", traceback.format_exc())
+        
     from .firescarmapper import FireScarMapper
     return FireScarMapper(iface)
