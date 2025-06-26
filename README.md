@@ -52,9 +52,10 @@ cd C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugin
 - Create the symbolik link:
 ```bash
 mklink /D <name of the plugin folder> <path where the repository was cloned>
-example: mklink /D FireScarMapper C:\Users\USER\plugins\FireScar-Mapper-Plugin
+example: mklink /D FireScar-Mapper-Plugin C:\Users\USER\plugins\FireScar-Mapper-Plugin
 ```
-
+Note: 
+The name of the folder must be the same as the one that it's cloned (FireScar-Mapper-Plugin)
 ---
 
 ### Step 2: Prepare the Plugin Resources
