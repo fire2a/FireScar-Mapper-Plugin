@@ -66,6 +66,9 @@ Using the `OSGeo4W Shell` program, you need to create the `resources.py` file re
 3. Generate the resources.py file from the resources.qrc file:
    - pyrcc5 resources.qrc -o resources.py
 
+#todo
+- agregar que se tiene que instalar el modulo ee en el osgeoshell con "python.exe -m pip install earthengine-api"
+
 #### Step 3: Enable the Plugin
 1) Restart QGIS if it was already open.
 2) Open the Plugins menu and navigate to the Manage and Install Plugins option.
