@@ -92,6 +92,7 @@ To use the image generation feature:
 2. Go to **Plugins > Manage and Install Plugins**.
 3. Look for "Fire Scar Mapper" and enable it.
 4. A dialog will appear if any dependencies are missing — click **Install** and follow the instructions.
+5. After downloading the missing dependencies restart QGIS Desktop.
 
 ---
 
