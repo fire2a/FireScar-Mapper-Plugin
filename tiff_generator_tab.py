@@ -32,6 +32,20 @@ from qgis.PyQt.QtWidgets import QWidget
 import ee
 import requests
 
+from osgeo import gdal
+
+def set_band_names(tif_path, band_names):
+    ds = gdal.Open(tif_path, gdal.GA_Update)
+    if ds:
+        for i, name in enumerate(band_names, start=1):
+            ds.GetRasterBand(i).SetDescription(name)
+        ds.FlushCache()
+        ds = None
+        print(f"✅ Nombres de bandas asignados a {tif_path}")
+    else:
+        print(f"⚠️ No se pudo abrir {tif_path} para editar bandas.")
+
+
 def ensure_results_folder():
     plugin_dir = os.path.dirname(__file__)
     results_dir = os.path.join(plugin_dir, "results", "images")
@@ -340,8 +354,8 @@ class TiffGeneratorTab(QWidget):
         pref = mosaicpre.mosaic().clip(region)
         postf = mosaicpos.mosaic().clip(region)
 
-        PREImagen = pref.select(['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
-        POSImagen = postf.select(['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
+        PREImagen = pref.select(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
+        POSImagen = postf.select(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
         
         #temp_dir = tempfile.gettempdir()
         #pre_path = os.path.join(temp_dir, f"ImgPreF_{start_date}.tif")
@@ -356,7 +370,7 @@ class TiffGeneratorTab(QWidget):
 
         pre_url = PREImagen.getDownloadUrl({
             'scale': 30,
-            'bands': ['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR'],
+            'bands': ['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR'],
             'region': region.bounds().getInfo()['coordinates'],
             'crs': 'EPSG:4326',
             'maxPixels': 1e13,
@@ -365,7 +379,7 @@ class TiffGeneratorTab(QWidget):
 
         post_url = POSImagen.getDownloadUrl({
             'scale': 30,
-            'bands': ['B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR'],
+            'bands': ['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR'],
             'region': region.bounds().getInfo()['coordinates'],
             'crs': 'EPSG:4326',
             'maxPixels': 1e13,
@@ -384,9 +398,17 @@ class TiffGeneratorTab(QWidget):
             else:
                 print(f"⚠️ Error al descargar la imagen: {url}")
                 return False
-
+        
         success_pre = download_image(pre_url, pre_path)
         success_post = download_image(post_url, post_path)
+
+        band_names = ['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']
+
+        if success_pre:
+            set_band_names(pre_path, band_names)
+
+        if success_post:
+            set_band_names(post_path, band_names)
 
         if success_pre and success_post:
             self.add_raster_to_qgis(pre_path, f"Pre-Fire {start_date}")
