@@ -56,6 +56,7 @@ example: mklink /D FireScar-Mapper-Plugin C:\Users\USER\plugins\FireScar-Mapper-
 ```
 Note: 
 The name of the folder must be the same as the one that it's cloned (FireScar-Mapper-Plugin)
+
 ---
 
 ### Step 2: Prepare the Plugin Resources
