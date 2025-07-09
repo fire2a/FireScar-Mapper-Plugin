@@ -41,9 +41,9 @@ def set_band_names(tif_path, band_names):
             ds.GetRasterBand(i).SetDescription(name)
         ds.FlushCache()
         ds = None
-        print(f"✅ Nombres de bandas asignados a {tif_path}")
+        print(f"✅ Band names assigned to {tif_path}")
     else:
-        print(f"⚠️ No se pudo abrir {tif_path} para editar bandas.")
+        print(f"⚠️ {tif_path} can't be opened to edit the bands.")
 
 
 def ensure_results_folder():
@@ -54,7 +54,7 @@ def ensure_results_folder():
 
 def get_unique_filepath(base_path):
     """
-    Si el archivo existe, agrega un sufijo numérico (1), (2), etc., hasta encontrar uno disponible.
+    If file exists, add numeric suffix (1), (2), etc., until findig one available.
     """
     if not os.path.exists(base_path):
         return base_path
@@ -78,17 +78,17 @@ class FireIgnitionTool(QgsMapToolEmitPoint):
         self.canvas = iface.mapCanvas()
         self.callback = callback
         self.setCursor(Qt.CrossCursor)
-        print("🔥 FireIgnitionTool activado. Haz clic en el mapa para seleccionar el punto de ignición.")
+        print("🔥 FireIgnitionTool Activated. Click on the map to select an ignition point.")
 
     def canvasReleaseEvent(self, event):
         point = self.toMapCoordinates(event.pos())
         if point:
-            print(f"📍 Punto de ignición seleccionado: {point.x()}, {point.y()}")
+            print(f"📍 Ignition Point Selected: {point.x()}, {point.y()}")
             self.callback(point)
             self.canvas.unsetMapTool(self)
-            print("🔄 Herramienta desactivada después de la selección.")
+            print("🔄 Tool deactivated after the selection.")
         else:
-            print("⚠️ No se pudo obtener un punto de ignición.")
+            print("⚠️ Ignition Point couldn't be obtained.")
 
 class TiffGeneratorTab(QWidget):
     #closingPlugin = pyqtSignal()
@@ -98,7 +98,7 @@ class TiffGeneratorTab(QWidget):
         self.iface = iface
 
         # UI Setup
-        self.setWindowTitle("Generador de TIFF de Incendios")
+        self.setWindowTitle("Wildfire TIFF Generator")
         layout = QtWidgets.QVBoxLayout()
 
         # Punto de ignición
@@ -157,10 +157,10 @@ class TiffGeneratorTab(QWidget):
         try:
             ee.Initialize()
         except Exception as e:
-            print(f"Error al inicializar Google Earth Engine: {e}")
+            print(f"Error at initializing Google Earth Engine: {e}")
 
     def select_point(self):
-        print("🛠 Activando herramienta de selección de punto de ignición...")
+        print("🛠 Activating Ignition Point Selection Tool...")
         self.tool = FireIgnitionTool(self.iface, self.set_point)
         self.iface.mapCanvas().setMapTool(self.tool)
         self.iface.mapCanvas().refresh()
@@ -168,21 +168,21 @@ class TiffGeneratorTab(QWidget):
     def set_point(self, point):
         if point:
             self.ignition_point = point
-            self.label_point.setText(f"Punto de ignición: {point.x()}, {point.y()}")
-            print(f"✅ Punto de ignición confirmado: {point.x()}, {point.y()}")
+            self.label_point.setText(f"Ignition Point: {point.x()}, {point.y()}")
+            print(f"✅ Ignition Point Confirmed: {point.x()}, {point.y()}")
         else:
-            print("⚠️ Error: No se capturó un punto válido.")
+            print("⚠️ Error: Couldn't capture a valid point.")
 
     def generate_tiff(self):
         if not self.ignition_point:
-            print("⚠️ No se ha seleccionado un punto de ignición.")
-            self.label_point.setText("Selecciona un punto de ignición primero")
+            print("⚠️ An Ignition Point has not been selected.")
+            self.label_point.setText("Select an Ignition Point first")
             return
 
         start_date = self.start_date.date().toString("yyyy-MM-dd")
         end_date = self.end_date.date().toString("yyyy-MM-dd")
         buffer_distance = self.area_input.value() * 100
-        print("🚀 Iniciando generación de imágenes pre y post incendio...")
+        print("🚀 Iniciating Pre and Post-Fire Image generation...")
 
         self.get_fire_images(start_date, end_date, buffer_distance)
 
@@ -315,7 +315,7 @@ class TiffGeneratorTab(QWidget):
 
     def get_fire_images(self, start_date, end_date, buffer_distance):
         area = max(self.area_input.value(), 0.0001)  
-        buffer_size = ee.Number(area).log().multiply(3000).max(3000) 
+        buffer_size = ee.Number(area).log().multiply(2000).max(3000) 
         buffer_size = ee.Number(163673.1).multiply(ee.Number(1).subtract(ee.Number(-0.001157413).multiply(ee.Number(area).pow(0.5259879)).exp()))  
         buffer_size = buffer_size.multiply(1.5)
         region = ee.Geometry.Point([self.ignition_point.x(), self.ignition_point.y()]).buffer(buffer_size)
@@ -366,7 +366,7 @@ class TiffGeneratorTab(QWidget):
         post_path = get_unique_filepath(os.path.join(results_dir, f"ImgPosF_{end_date}.tif"))
 
 
-        print(f"💾 Descargando imágenes en archivos temporales: {pre_path} y {post_path}")
+        print(f"💾 Downloading Images on temporary files: {pre_path} y {post_path}")
 
         pre_url = PREImagen.getDownloadUrl({
             'scale': 30,
@@ -393,10 +393,10 @@ class TiffGeneratorTab(QWidget):
                 with open(output_path, 'wb') as file:
                     for chunk in response.iter_content(1024):
                         file.write(chunk)
-                print(f"✅ Imagen descargada: {output_path}")
+                print(f"✅ Image Downloaded: {output_path}")
                 return True
             else:
-                print(f"⚠️ Error al descargar la imagen: {url}")
+                print(f"⚠️ Error at downloading the image: {url}")
                 return False
         
         success_pre = download_image(pre_url, pre_path)
@@ -414,22 +414,22 @@ class TiffGeneratorTab(QWidget):
             self.add_raster_to_qgis(pre_path, f"Pre-Fire {start_date}")
             self.add_raster_to_qgis(post_path, f"Post-Fire {end_date}")
 
-        print("✅ Descarga de imágenes temporales completada y agregadas a QGIS.")
+        print("✅ Temporal Imagees download complete and added to QGIS.")
 
     def add_raster_to_qgis(self, file_path, layer_name):
         """
-        Agrega un archivo TIFF a la interfaz de QGIS.
+        Add a TIFF file to the interface of QGIS.
 
         Parameters:
-        file_path (str): Ruta del archivo TIFF.
-        layer_name (str): Nombre de la capa en QGIS.
+        file_path (str): TIFF file path.
+        layer_name (str): Name of the layer in QGIS.
         """
         if os.path.exists(file_path):
             layer = QgsRasterLayer(file_path, layer_name, "gdal")
             if layer.isValid():
                 QgsProject.instance().addMapLayer(layer)
-                print(f"🗺️ Capa agregada a QGIS: {layer_name}")
+                print(f"🗺️ Layer added to QGIS: {layer_name}")
             else:
-                print(f"⚠️ Error: No se pudo cargar la capa {layer_name}")
+                print(f"⚠️ Error: Couldn't load the layer {layer_name}")
         else:
-            print(f"⚠️ El archivo no existe: {file_path}")
+            print(f"⚠️ File doesn't exist: {file_path}")
