@@ -1,83 +1,127 @@
-# Automatic burned area mapping approach using Deep Learning 
+# Fire Scar Mapper Plugin for QGIS
 
-#### Ian Wulff-Limongi, Jaime Carrasco, Cristobal Pais, Alejandro Miranda, Andres Weintraub, Carla Vairetti and Diego Terán
----
-#### Project on automatic recognition of fire scars using LANDSAT's satellite imagery applying the U-Net model
----
-### Abstract 
-
-Wildfires are a critical problem among the last years worldwide due to their consequences, such
-as the carbon footprint, besides other ecological, economic and social impacts. Correspondingly,
-studying the affected areas is necessary, mapping every fire scar, typically using satellite data.
-In this paper, we propose a Deep Learning (DL) automate approach, using the U-Net model and
-Landsat imagery, that could become a straightforward automate alternative. Thus, two models
-were evaluated, each trained with a dataset with a different class balance, produced by cropping
-the input images to different sizes, to a determined and variable size: 128 and AllSizes (AS),
-including a better and worse class balance respectively. The testing results using 195 represen-
-tative images of the study area: Dice Coefficient (DC)=0.93, Omission error (OE)=0.086 and
-Commission Error (CE)=0.045- for AS, and DC=0.86, OE=0,12 and CE=0,12 for 128, proving
-that a better balanced dataset results on a better performance.
-
----
-### Material and Methods
-
-Two specific datasets were cropped out from the files of The Landscape Fire Scars Database, to evaluate the performance using different image sizes. These datasets included **1966** fires, dividing the data almost equally for each region, **with 977 events from Valparaíso and 989 from BioBío**. 
-
-<img src="images/methods_data.jpg" width="615" height="384">
-
-Within the Convolutional Neural Network (CNN), the model U Net was selected for the prediction of the burned areas.
-
-<img src="images/u_net.jpg" width="755" height="387">
+The **Fire Scar Mapper** is a QGIS plugin designed to assist in the detection and analysis of wildfire-affected areas. It provides two core functionalities:
 
 ---
 
-### Results
+## 🔥 Functionality Overview
 
-In the Table 1 can be seen the results for each model, AS and 128.
+### 1. **Pre- and Post-Fire Image Generator**
 
-<img src="images/Results.jpg" width="642" height="333">
+This tool allows you to:
+- Select a starting and ending date, location of interest and estimated affected area in hectares (depending on each wildfire)
+- Automatically retrieve satellite imagery before and after the fire from **Google Earth Engine (GEE)**
+- Clip the images to a circular area centered on the ignition point 
+   - This clip is made with a buffer depending on the affected area, this allow to define an estimated length relating the area with the FireScar bigger axis. 
+- Add the resulting images to your QGIS project for further analysis
 
-Finallly, some highlights of the models' performance can be seen:
 
-<img src="images/performance_sum.jpg" width="732" height="704">
+---
 
-### Plugin Usage Instructions
+### 2. **Fire Scar Detection with Deep Learning**
+
+This module enables you to:
+- Select **pre- and post-fire images** from your QGIS layers
+- Run a trained **U-Net model** to detect burned areas 
+   - AS: Model trained with images cropped to the affected size of a FireScar
+   - 128: Model trained with images of 128 x 128 pixels centered on the FireScar
+   - (Try with both models to select the best output)  
+- Generate a georeferenced raster representing the fire scar
+- Visualize the outputs directly within QGIS in a structured and organized way
+
+The fire scar raster is stored in a `/results` folder within the plugin directory.
+
+The repository of the U-Net models is on this [link](https://github.com/fire2a/FireScars)
+
+---
+
+## ⚙️ Plugin Usage Instructions
 
 To use the plugin in QGIS, follow the steps below:
 
-#### Step 1: Clone the Repository
-Clone this repository into the QGIS plugins folder. On most systems, the folder is located at:
+---
 
-`C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
+### Step 1: Clone the Repository
 
-Alternatively, you can clone the repository into any folder and create a symbolic link to the QGIS plugins folder.
+Clone this repository anywere and then create a **symbolic link** to the QGIS plugins folder
+- Open a terminal with admin priviligies
+- Go to the folder where QGIS store their plugins. On most systems, the folder is located at:
+```bash
+cd C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
+```
+- Create the symbolik link:
+```bash
+mklink /D FireScar-Mapper-Plugin <path where the repository was cloned>
+example: mklink /D FireScar-Mapper-Plugin C:\Users\USER\plugins\FireScar-Mapper-Plugin
+```
+Note: 
+The name of the folder must be the same as the one that it's cloned (FireScar-Mapper-Plugin)
 
-#### Step 2: Prepare the Plugin Resources
-Using the `OSGeo4W Shell` program, you need to create the `resources.py` file required by the plugin. Follow these steps:
+---
 
-1. Navigate to the plugin folder location:
-   ```bash
-   cd <path_to_plugin_folder>
-   
-2. Ensure the correct virtual environments are activated by running the following commands:
-   - py3_env
-   - qt5_env
-     
-3. Generate the resources.py file from the resources.qrc file:
-   - pyrcc5 resources.qrc -o resources.py
+### Step 2: Prepare the Plugin Resources
 
-#### Step 3: Enable the Plugin
-1) Restart QGIS if it was already open.
-2) Open the Plugins menu and navigate to the Manage and Install Plugins option.
-3) Find the plugin "Fire Scar Mapper" in the list and enable it.
+Using the **OSGeo4W Shell**, follow these steps:
 
-#### Step 4: Use the Plugin
-Once the plugin is enabled, follow the interface prompts to:
+```bash
+cd <path_to_plugin_folder>
+py3_env
+qt5_env
+pyrcc5 resources.qrc -o resources.py
+```
+This will generate the necessary `resources.py` file for icons and GUI elements.
 
-- Select pre- and post-fire images.
-(If the images are not cropped) Provide a shapefile with fire scar boundaries or ignition points.
-- Choose the model scale (AS or 128).
-- Indicate whether the input images are already cropped.
-- Run the plugin to generate fire scars directly within QGIS.
-  
-The plugin will generate georeferenced raster layers and organize them into groups for analysis.(The generated raster files will be stored on "/results" inside the plugin folder)
+Note: 
+However, in some cases, the pyrcc5 command works without explicitly activating those environments, especially if you are using a standalone QGIS installation or already have the required tools in your system path.
+
+---
+
+### Step 3: Download the Google Earth Engine Plugin
+
+To use the image generation feature:
+
+1. Install the **Google Earth Engine** plugin via the QGIS Plugin Manager.
+2. Follow the instructions that appear.
+3. You must link your GEE account and provide an **authorized GEE project ID** (which you can create in [GEE Code Editor](https://code.earthengine.google.com/)).
+
+---
+
+### Step 4: Enable the Plugin in QGIS
+
+1. Restart QGIS (if it was opened).
+2. Go to **Plugins > Manage and Install Plugins**.
+3. Look for "Fire Scar Mapper" and enable it.
+4. A dialog will appear if any dependencies are missing — click **Install** and follow the instructions.
+5. After downloading the missing dependencies restart QGIS Desktop.
+
+---
+
+### Step 5: Use the Plugin
+
+After installation, you can:
+
+- **Tab 1: Generate Pre- and Post-Fire Images**
+  - Select a starting and ending date, ignition point and affected area in hectares.
+  - Retrieve and add satellite images directly to your project
+
+- **Tab 2: Generate Fire Scars**
+  - Select pre- and post-fire images
+  - Indicate whether the images are cropped
+  - Run the model to generate a burned area mask
+  - Output raster is grouped and displayed in your QGIS Layers Panel
+
+🗂️ All outputs are saved in the `/results/` folder within the plugin directory.
+
+---
+
+## 📦 Dependencies
+
+The plugin automatically installs required Python packages on first use, including:
+
+- `earthengine-api`
+- `torch`
+- `torchvision`
+
+A confirmation window will appear before installation. A restart of QGIS may be required afterward.
+
+---

@@ -1,5 +1,5 @@
 <RCC>
-    <qresource prefix="/plugins/example" >
+    <qresource prefix="/plugins/FireScar-Mapper-Plugin" >
         <file>icon.png</file>
         <file>images/diagrama plugin.png</file>
     </qresource>

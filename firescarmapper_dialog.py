@@ -22,23 +22,40 @@
  ***************************************************************************/
 """
 
-import os
-
-from qgis.PyQt import uic
-from qgis.PyQt import QtWidgets
-
-# This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'firescarmapper_dialog_base.ui'))
+from qgis.PyQt.QtWidgets import QDockWidget, QTabWidget, QVBoxLayout, QWidget
+from .tiff_generator_tab import TiffGeneratorTab
+from .layer_selection_tab import LayerSelectionDialog
 
 
-class FireScarMapperDialog(QtWidgets.QDialog, FORM_CLASS):
-    def __init__(self, parent=None):
-        """Constructor."""
-        super(FireScarMapperDialog, self).__init__(parent)
-        # Set up the user interface from Designer through FORM_CLASS.
-        # After self.setupUi() you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
+class FireScarMapperDialog(QDockWidget):
+    def __init__(self, iface, parent=None):
+        super().__init__(parent)
+        self.iface = iface
+        self.setWindowTitle("Fire Scar Mapper")
+
+        # Layout principal
+        main_widget = QWidget()
+        layout = QVBoxLayout()
+
+        # Crear el QTabWidget con las pestañas
+        self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+
+        self.tabs.addTab(TiffGeneratorTab(self.iface, self), "Generate Images")
+        self.layer_tab = LayerSelectionDialog(self.iface, self)
+        self.tabs.addTab(self.layer_tab, "Generate Fire Scar")
+
+
+        # Agregar los tabs al layout
+        layout.addWidget(self.tabs)
+        main_widget.setLayout(layout)
+
+        # Establecer el widget principal del Dock
+        self.setWidget(main_widget)
+    
+    def on_tab_changed(self, index):
+        # Si es la pestaña 1 (segunda), actualiza los ComboBox
+        if index == 1:
+            self.layer_tab.populate_layer_combos()
+
+
