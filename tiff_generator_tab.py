@@ -107,12 +107,12 @@ class TiffGeneratorTab(QWidget):
         self.btn_select_point.clicked.connect(self.select_point)
 
         # Fechas
-        self.label_start_date = QtWidgets.QLabel("Start Date:")
+        self.label_start_date = QtWidgets.QLabel("Start Date (DD-MM-YYYY):")
         self.start_date = QtWidgets.QDateEdit()
         self.start_date.setCalendarPopup(True)
         self.start_date.setDate(QDate.currentDate())
 
-        self.label_end_date = QtWidgets.QLabel("End Date:")
+        self.label_end_date = QtWidgets.QLabel("End Date (DD-MM-YYYY):")
         self.end_date = QtWidgets.QDateEdit()
         self.end_date.setCalendarPopup(True)
         self.end_date.setDate(QDate.currentDate())
