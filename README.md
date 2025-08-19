@@ -54,6 +54,11 @@ cd C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugin
 mklink /D FireScar-Mapper-Plugin <path where the repository was cloned>
 example: mklink /D FireScar-Mapper-Plugin C:\Users\USER\plugins\FireScar-Mapper-Plugin
 ```
+In case you haven't find it yet, follow these steps: 
+1. Open QGIS
+2. In the header menu, click on `Settings>User Profile>Open Active Profile Folder`
+3. Once that folder is open, go to `python/plugins` and you're done. 
+
 Note: 
 The name of the folder must be the same as the one that it's cloned (FireScar-Mapper-Plugin)
 
