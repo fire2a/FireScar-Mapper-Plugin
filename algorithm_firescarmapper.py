@@ -93,7 +93,6 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
                 "layer": layer,
                 "path": not_cropped_paths[i],
                 "not_cropped_path": not_cropped_paths[i],
-                "output_path": os.path.join(model_scale_dir, f"FireScar_{basename}.tif")
             }
             adict.update(self.get_rlayer_info(layer))
             rasters += [adict]
@@ -148,32 +147,37 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
             generated_matrix = pred[0][0]
             
-            if before_files[i]['output_path']:
-                
-                group_name = f"FireScarGroup_{i+1} ({datatype})"
-                root = QgsProject.instance().layerTreeRoot()
-                group = root.findGroup(group_name)
-                if not group:
-                    group = root.addGroup(group_name)
-                
-                # Colapsar el grupo para que se muestre minimizado en el panel de capas
-                project_instance = QgsProject.instance()
-                layer_tree = project_instance.layerTreeRoot().findGroup(group_name)
-                if layer_tree:
-                    layer_tree.setExpanded(False)
+            # Derive fire_id from the pre-fire filename (strip ImgPreF_ prefix)
+            pre_basename = os.path.splitext(os.path.basename(before_files[i]['not_cropped_path']))[0]
+            if pre_basename.startswith("ImgPreF_"):
+                fire_id = pre_basename[len("ImgPreF_"):]
+            else:
+                fire_id = pre_basename
 
-                pre_file_path_name = before_files[i]['name'].split("\\")[-1]
-                pre_file_name = pre_file_path_name.split("_")[-1]
-                post_file_path_name = after_files[i]['name'].split("\\")[-1]
-                post_file_name = post_file_path_name.split("_")[-1]
+            # Build output path using fire_id and model type, avoid overwriting existing files
+            output_filename = f"FireScar_{fire_id}_{datatype}.tif"
+            output_path = self.get_unique_filepath(os.path.join(model_scale_dir, output_filename))
 
-                self.writeRaster(generated_matrix, before_files[i]['output_path'], before_files[i], feedback)
-                self.addRasterLayer(before_files[i]['output_path'],f"FireScar_{post_file_name}", group, "FireScar", context)
-                self.addRasterLayer(after_files[i]['not_cropped_path'],f"ImgPosF_{post_file_name}", group, "ImgPosF", context)
-                self.addRasterLayer(before_files[i]['not_cropped_path'],f"ImgPreF_{pre_file_name}", group, "ImgPreF", context)
+            # Layer name mirrors the filename (without extension)
+            scar_layer_name = os.path.splitext(os.path.basename(output_path))[0]
+
+            self.writeRaster(generated_matrix, output_path, before_files[i], feedback)
+            self.addRasterLayer(output_path, scar_layer_name, context)
         return {}
         
-    
+    def get_unique_filepath(self, base_path):
+        """If file exists, add numeric suffix _2, _3, etc., until finding one available."""
+        if not os.path.exists(base_path):
+            return base_path
+        directory, filename = os.path.split(base_path)
+        name, ext = os.path.splitext(filename)
+        i = 2
+        while True:
+            new_path = os.path.join(directory, f"{name}_{i}{ext}")
+            if not os.path.exists(new_path):
+                return new_path
+            i += 1
+
     def download_model(self, model_path, download_url, feedback):
         """Download the model from Amazon S3 with progress feedback."""
         
@@ -381,16 +385,16 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Raster written to {file_path}")
 
-    def addRasterLayer(self, file_path, layer_name, group, tif_type, context):
-        """Añadir la capa raster al grupo en el proyecto."""
+    def addRasterLayer(self, file_path, layer_name, context):
+        """Añadir la capa raster al tope del árbol de capas del proyecto."""
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
         QgsProject.instance().addMapLayer(layer, False)
-        group.addLayer(layer)
+        QgsProject.instance().layerTreeRoot().insertLayer(0, layer)
 
         # Si el nombre de la capa contiene "FireScar", cambiar el renderer a singleband pseudocolor
-        if tif_type == "FireScar":
+        if "_AS" in layer_name or "_128" in layer_name:
             # Forzar el cálculo de las estadísticas de la banda para obtener los valores correctos
             provider = layer.dataProvider()
             stats = provider.bandStatistics(1, QgsRasterMinMaxOrigin.Estimated)

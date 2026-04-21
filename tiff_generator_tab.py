@@ -54,7 +54,7 @@ def ensure_results_folder():
 
 def get_unique_filepath(base_path):
     """
-    If file exists, add numeric suffix (1), (2), etc., until findig one available.
+    If file exists, add numeric suffix _2, _3, etc., until finding one available.
     """
     if not os.path.exists(base_path):
         return base_path
@@ -62,13 +62,24 @@ def get_unique_filepath(base_path):
     directory, filename = os.path.split(base_path)
     name, ext = os.path.splitext(filename)
 
-    i = 1
+    i = 2
     while True:
-        new_filename = f"{name} ({i}){ext}"
+        new_filename = f"{name}_{i}{ext}"
         new_path = os.path.join(directory, new_filename)
         if not os.path.exists(new_path):
             return new_path
         i += 1
+
+def format_fire_id(start_date, lat, lon):
+    """
+    Build a compact, unambiguous fire identifier string.
+    Examples:
+      -38.50, -71.20  ->  2018-01-28_S3850_W7120
+       38.50,  71.20  ->  2018-01-28_N3850_E7120
+    """
+    lat_code = f"{'S' if lat < 0 else 'N'}{int(abs(lat) * 100):04d}"
+    lon_code = f"{'W' if lon < 0 else 'E'}{int(abs(lon) * 100):04d}"
+    return f"{start_date}_{lat_code}_{lon_code}"
 
 
 class FireIgnitionTool(QgsMapToolEmitPoint):
@@ -184,7 +195,9 @@ class TiffGeneratorTab(QWidget):
         buffer_distance = self.area_input.value() * 100
         print("🚀 Iniciating Pre and Post-Fire Image generation...")
 
-        self.get_fire_images(start_date, end_date, buffer_distance)
+        lat = self.ignition_point.y()
+        lon = self.ignition_point.x()
+        self.get_fire_images(start_date, end_date, buffer_distance, lat, lon)
 
     def applyScaleFactors(self, image):
         """
@@ -313,7 +326,8 @@ class TiffGeneratorTab(QWidget):
         """
         return image.set('time_start', image.get('system:time_start'))
 
-    def get_fire_images(self, start_date, end_date, buffer_distance):
+    def get_fire_images(self, start_date, end_date, buffer_distance, lat, lon):
+        fire_id = format_fire_id(start_date, lat, lon)
         area = max(self.area_input.value(), 0.0001)  
         buffer_size = ee.Number(area).log().multiply(2000).max(3000) 
         buffer_size = ee.Number(163673.1).multiply(ee.Number(1).subtract(ee.Number(-0.001157413).multiply(ee.Number(area).pow(0.5259879)).exp()))  
@@ -362,9 +376,11 @@ class TiffGeneratorTab(QWidget):
         #post_path = os.path.join(temp_dir, f"ImgPosF_{end_date}.tif")
 
         results_dir = ensure_results_folder()
-        pre_path = get_unique_filepath(os.path.join(results_dir, f"ImgPreF_{start_date}.tif"))
-        post_path = get_unique_filepath(os.path.join(results_dir, f"ImgPosF_{end_date}.tif"))
+        pre_path = get_unique_filepath(os.path.join(results_dir, f"ImgPreF_{fire_id}.tif"))
+        post_path = get_unique_filepath(os.path.join(results_dir, f"ImgPosF_{fire_id}.tif"))
 
+        pre_layer_name  = "Pre-Fire_"  + os.path.splitext(os.path.basename(pre_path))[0].replace("ImgPreF_", "")
+        post_layer_name = "Post-Fire_" + os.path.splitext(os.path.basename(post_path))[0].replace("ImgPosF_", "")
 
         print(f"💾 Downloading Images on temporary files: {pre_path} y {post_path}")
 
@@ -411,8 +427,8 @@ class TiffGeneratorTab(QWidget):
             set_band_names(post_path, band_names)
 
         if success_pre and success_post:
-            self.add_raster_to_qgis(pre_path, f"Pre-Fire {start_date}")
-            self.add_raster_to_qgis(post_path, f"Post-Fire {end_date}")
+            self.add_raster_to_qgis(pre_path, pre_layer_name)
+            self.add_raster_to_qgis(post_path, post_layer_name)
 
         print("✅ Temporal Imagees download complete and added to QGIS.")
 
@@ -427,7 +443,8 @@ class TiffGeneratorTab(QWidget):
         if os.path.exists(file_path):
             layer = QgsRasterLayer(file_path, layer_name, "gdal")
             if layer.isValid():
-                QgsProject.instance().addMapLayer(layer)
+                QgsProject.instance().addMapLayer(layer, False)
+                QgsProject.instance().layerTreeRoot().insertLayer(0, layer)
                 print(f"🗺️ Layer added to QGIS: {layer_name}")
             else:
                 print(f"⚠️ Error: Couldn't load the layer {layer_name}")
