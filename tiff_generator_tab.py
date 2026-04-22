@@ -27,7 +27,7 @@ from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import  QDate, Qt
 from qgis.core import QgsProject, QgsRasterLayer
 from qgis.gui import QgsMapToolEmitPoint
-from qgis.PyQt.QtWidgets import QWidget
+from qgis.PyQt.QtWidgets import QWidget, QMessageBox
 
 import ee
 import requests
@@ -167,7 +167,9 @@ class TiffGeneratorTab(QWidget):
     def ee_initialize(self):
         try:
             ee.Initialize()
+            self.gee_initialized = True
         except Exception as e:
+            self.gee_initialized = False
             print(f"Error at initializing Google Earth Engine: {e}")
 
     def select_point(self):
@@ -185,19 +187,52 @@ class TiffGeneratorTab(QWidget):
             print("⚠️ Error: Couldn't capture a valid point.")
 
     def generate_tiff(self):
+        if not self.gee_initialized:
+            QMessageBox.critical(
+                self,
+                "Google Earth Engine Error",
+                "Google Earth Engine is not initialized.\n\n"
+                "Please make sure you have:\n"
+                "1. Installed the GEE plugin in QGIS\n"
+                "2. Linked your GEE account\n"
+                "3. Set a valid GEE project ID\n\n"
+                "Then restart QGIS and try again."
+            )
+            return
+
         if not self.ignition_point:
-            print("⚠️ An Ignition Point has not been selected.")
+            QMessageBox.warning(self, "Missing Input", "Please select an ignition point on the map first.")
             self.label_point.setText("Select an Ignition Point first")
             return
 
-        start_date = self.start_date.date().toString("yyyy-MM-dd")
-        end_date = self.end_date.date().toString("yyyy-MM-dd")
+        start_date = self.start_date.date()
+        end_date = self.end_date.date()
+
+        if end_date < start_date:
+            QMessageBox.warning(
+                self,
+                "Invalid Dates",
+                "The end date cannot be earlier than the start date."
+            )
+            return
+
+        if self.area_input.value() < 1:
+            QMessageBox.warning(
+                self,
+                "Invalid Area",
+                "The estimated area must be at least 1 hectare.\n"
+                "A value of 0 would generate a buffer too small to capture the fire scar."
+            )
+            return
+
+        start_date_str = start_date.toString("yyyy-MM-dd")
+        end_date_str = end_date.toString("yyyy-MM-dd")
         buffer_distance = self.area_input.value() * 100
         print("🚀 Iniciating Pre and Post-Fire Image generation...")
 
         lat = self.ignition_point.y()
         lon = self.ignition_point.x()
-        self.get_fire_images(start_date, end_date, buffer_distance, lat, lon)
+        self.get_fire_images(start_date_str, end_date_str, buffer_distance, lat, lon)
 
     def applyScaleFactors(self, image):
         """
