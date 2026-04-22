@@ -112,10 +112,10 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
         if datatype == "AS":
             model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-            model_download_url = "https://fire2a-firescar-as-model.s3.amazonaws.com/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model"
+            model_download_url = "https://github.com/fire2a/FireScar-Mapper-Plugin/releases/download/v1.0/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model"
         else:
             model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_014_128_std_25_08_mult3_adam01.model')
-            model_download_url = "https://fire2a-firescar-as-model.s3.amazonaws.com/ep25_lr1e-04_bs16_014_128_std_25_08_mult3_adam01.model"
+            model_download_url = "https://github.com/fire2a/FireScar-Mapper-Plugin/releases/download/v1.0/ep25_lr1e-04_bs16_014_128_std_25_08_mult3_adam01.model"
         
         if not os.path.exists(model_path):
             feedback.pushInfo("Model not found. Initializing download...")
@@ -179,7 +179,7 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             i += 1
 
     def download_model(self, model_path, download_url, feedback):
-        """Download the model from Amazon S3 with progress feedback."""
+        """Download the model from the repository Github releases with progress feedback."""
         
         def save_response_content(response, destination, feedback, total_size):
             """Guardar el contenido descargado en el archivo de destino con retroalimentación de progreso."""

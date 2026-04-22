@@ -133,7 +133,7 @@ class LayerSelectionDialog(QWidget):
             (If the images are already cropped, "_clip" must be added before ".tif")<br>
             <br>
             <b>Considerations:</b><br>
-            - The segmentation model is pre-trained and downloaded from a bucket in AWS if necessary.<br>
+            - The segmentation model is pre-trained and downloaded from the plugin's GitHub releases if necessary.<br>
             - In the pre- and post-fire image layers, the red and blue bands are swapped. Adjust the symbology in QGIS to correct this.<br>
             - Certain fire scars generated using the 128 approach may be incomplete if the scar is significantly large or distant from the ignition point.<br>
             <br>
