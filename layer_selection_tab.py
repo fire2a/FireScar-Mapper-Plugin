@@ -52,6 +52,10 @@ class LayerSelectionDialog(QWidget):
         self.scale_combo = QComboBox(self)
         self.scale_combo.addItems(["AS", "128"])
 
+        # Refresh button to update layer list
+        self.refresh_button = QPushButton("🔄 Refresh Layers")
+        self.refresh_button.clicked.connect(self.populate_layer_combos)
+
         # execute process button
         self.run_button = QPushButton("Generate Fire Scar")
         self.run_button.clicked.connect(self.run_fire_scar_mapping)
@@ -66,8 +70,9 @@ class LayerSelectionDialog(QWidget):
         left_layout.addWidget(self.post_fire_label)
         left_layout.addLayout(self.post_fire_selector_layout)
         left_layout.addWidget(self.post_fire_display)
-
         
+        left_layout.addWidget(self.refresh_button)
+
         left_layout.addWidget(self.scale_label)
         left_layout.addWidget(self.scale_combo)
 
