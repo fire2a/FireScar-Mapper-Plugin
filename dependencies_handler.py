@@ -2,6 +2,7 @@
 """
 see https://github.com/fdobad/qgis-easy-dependencies-plugin/blob/main/README.md
 """
+import sys
 from sys import prefix as sys_prefix
 from configparser import ConfigParser
 from distutils.version import LooseVersion
@@ -105,13 +106,13 @@ def run():
                 )
                 continue
             else:
-                msg = f"{req_pkg_name} version mismatch: found {found_version}, required {req_version}"
+                msg = f"{req_pkg_name} version mismatch: found {found_version}, required {req_version}. Will reinstall to ensure compatibility with the plugin."
         except PackageNotFoundError:
             msg = f"{req_pkg_name} is not installed"
 
 
         # Try install
-        result = subprocess_run(["python3", "-m", "pip", "install", requirement], capture_output=True, text=True)
+        result = subprocess_run([sys.executable, "-m", "pip", "install", requirement], capture_output=True, text=True)
 
         if result.returncode == 0:
             any_installed = True

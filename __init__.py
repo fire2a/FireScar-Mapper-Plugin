@@ -31,6 +31,29 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
+    # Auto-generate resources.py if missing or outdated
+    try:
+        import os, subprocess
+        plugin_dir = os.path.dirname(__file__)
+        qrc_path = os.path.join(plugin_dir, "resources.qrc")
+        res_path = os.path.join(plugin_dir, "resources.py")
+        needs_rebuild = (
+            not os.path.exists(res_path) or
+            os.path.getmtime(qrc_path) > os.path.getmtime(res_path)
+        )
+        if needs_rebuild:
+            result = subprocess.run(
+                ["pyrcc5", qrc_path, "-o", res_path],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                print("✅ resources.py generated successfully.")
+            else:
+                print(f"⚠️ pyrcc5 failed: {result.stderr}")
+    except Exception as e:
+        import traceback
+        print("resources.py auto-generation failed:", traceback.format_exc())
+        
     #Import and execute dependencies handler
     try:
         from . import dependencies_handler
