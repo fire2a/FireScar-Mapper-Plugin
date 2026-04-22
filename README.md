@@ -43,13 +43,13 @@ To use the plugin in QGIS, follow the steps below:
 
 ### Step 1: Clone the Repository
 
-Clone this repository anywere and then create a **symbolic link** to the QGIS plugins folder
-- Open a terminal with admin priviligies
+Clone this repository anywhere and then create a **symbolic link** to the QGIS plugins folder
+- Open a terminal with admin privileges
 - Go to the folder where QGIS store their plugins. On most systems, the folder is located at:
 ```bash
 cd C:\Users\<username>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
 ```
-- Create the symbolik link:
+- Create the symbolic link:
 ```bash
 mklink /D FireScar-Mapper-Plugin <path where the repository was cloned>
 example: mklink /D FireScar-Mapper-Plugin C:\Users\USER\plugins\FireScar-Mapper-Plugin
@@ -59,24 +59,7 @@ The name of the folder must be the same as the one that it's cloned (FireScar-Ma
 
 ---
 
-### Step 2: Prepare the Plugin Resources
-
-Using the **OSGeo4W Shell**, follow these steps:
-
-```bash
-cd <path_to_plugin_folder>
-py3_env
-qt5_env
-pyrcc5 resources.qrc -o resources.py
-```
-This will generate the necessary `resources.py` file for icons and GUI elements.
-
-Note: 
-However, in some cases, the pyrcc5 command works without explicitly activating those environments, especially if you are using a standalone QGIS installation or already have the required tools in your system path.
-
----
-
-### Step 3: Download the Google Earth Engine Plugin
+### Step 2: Download the Google Earth Engine Plugin
 
 To use the image generation feature:
 
@@ -86,7 +69,7 @@ To use the image generation feature:
 
 ---
 
-### Step 4: Enable the Plugin in QGIS
+### Step 3: Enable the Plugin in QGIS
 
 1. Restart QGIS (if it was opened).
 2. Go to **Plugins > Manage and Install Plugins**.
@@ -96,7 +79,7 @@ To use the image generation feature:
 
 ---
 
-### Step 5: Use the Plugin
+### Step 4: Use the Plugin
 
 After installation, you can:
 
@@ -105,12 +88,33 @@ After installation, you can:
   - Retrieve and add satellite images directly to your project
 
 - **Tab 2: Generate Fire Scars**
-  - Select pre- and post-fire images
-  - Indicate whether the images are cropped
+  - Select pre- and post-fire images from the dropdown (all layers in the project are listed)
+  - Select the model approach: AS or 128
   - Run the model to generate a burned area mask
-  - Output raster is grouped and displayed in your QGIS Layers Panel
+  - Output raster is added to the top of the QGIS Layers Panel with the colormap "Reds" applied
 
 🗂️ All outputs are saved in the `/results/` folder within the plugin directory.
+
+---
+
+## 🛰️ Using Custom Satellite Images
+
+If you want to use your own images instead of generating them via GEE, they must meet the following conditions:
+
+**Technical requirements:**
+- CRS: `EPSG:4326`
+- Pixel resolution: `0.0002695°` (~30m N-S)
+- 8 bands in this exact order: `R, G, B, NIR, SWIR1, SWIR2, NDVI, NBR`
+- Data type: `Float32`
+- Source: Landsat (L5, L7, L8 or L9), Collection 2, Surface Reflectance level, with scale factors applied
+- Cloud-free or cloud-masked
+
+**Content requirements:**
+- Pre-fire image: most recent available image up to 365 days **before** the fire start date
+- Post-fire image: most recent available image up to 180 days **after** the fire control date
+- Both images must cover the exact same geographic extent and resolution
+
+> ⚠️ Images that do not meet these conditions may produce inaccurate or empty fire scar predictions, as the models were trained with images generated under these exact specifications.
 
 ---
 
