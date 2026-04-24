@@ -39,7 +39,7 @@ from torch.utils.data import DataLoader
 import os
 from osgeo import gdal, gdal_array
 import requests
-
+from qgis.PyQt.QtWidgets import QMessageBox
 
 class ProcessingAlgorithm(QgsProcessingAlgorithm):    
     def main(self, parameters, context, feedback):
@@ -163,7 +163,8 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             scar_layer_name = os.path.splitext(os.path.basename(output_path))[0]
 
             self.writeRaster(generated_matrix, output_path, before_files[i], feedback)
-            self.addRasterLayer(output_path, scar_layer_name, context)
+            if os.path.exists(output_path):
+                self.addRasterLayer(output_path, scar_layer_name, context)
         return {}
         
     def get_unique_filepath(self, base_path):
@@ -329,7 +330,18 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
     def writeRaster(self, matrix, file_path, before_layer, feedback):
         if np.count_nonzero(matrix) == 0:
-            raise QgsProcessingException("The generated fire scar matrix is empty. No valid pixels were found.")
+            feedback.pushInfo("⚠️ Warning: The model did not detect any burned area in this image.")
+            QMessageBox.warning(
+                None,
+                "No Burned Area Detected",
+                "The model did not detect any burned area in this image.\n\n"
+                "This may occur because:\n"
+                "• The fire is outside the model's training region (Biobío and Valparaíso, Chile)\n"
+                "• The vegetation type differs from the training data (forest/shrubland)\n"
+                "• The image does not show a clear spectral difference between pre and post-fire\n\n"
+                "The output raster has been generated but will appear empty."
+            )
+            return
         # Get the dimensions of the raster before the fire
         width = before_layer["width"]
         height = before_layer["height"]
