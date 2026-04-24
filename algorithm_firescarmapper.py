@@ -370,6 +370,22 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             gdal_array.BandWriteArray(band, resized_matrix, 0, 0)
         except ValueError as e:
             raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
+        
+        # Apply nodata mask from input image to clip output to the circular buffer
+        input_raster = gdal.Open(before_layer["not_cropped_path"])
+        if input_raster is not None:
+            input_band = input_raster.GetRasterBand(1)
+            input_data = input_band.ReadAsArray()
+            input_nodata = input_band.GetNoDataValue()
+            input_raster = None
+
+            output_data = band.ReadAsArray()
+            if input_nodata is not None:
+                mask = (input_data == input_nodata) | np.isinf(input_data)
+            else:
+                mask = np.isinf(input_data)
+            output_data[mask] = 0
+            gdal_array.BandWriteArray(band, output_data, 0, 0)
 
         # Set the NoData value
         band.SetNoDataValue(0)
