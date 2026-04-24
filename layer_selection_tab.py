@@ -210,4 +210,3 @@ class LayerSelectionDialog(QWidget):
         scar_mapper.main(parameters, context=None, feedback=feedback)
 
         feedback.pushInfo("Fire scar mapping process completed successfully.")
-        self.close()
