@@ -149,8 +149,8 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             
             # Derive fire_id from the pre-fire filename (strip ImgPreF_ prefix)
             pre_basename = os.path.splitext(os.path.basename(before_files[i]['not_cropped_path']))[0]
-            if pre_basename.startswith("ImgPreF_"):
-                fire_id = pre_basename[len("ImgPreF_"):]
+            if pre_basename.startswith("Pre-Fire_"):
+                fire_id = pre_basename[len("Pre-Fire_"):]
             else:
                 fire_id = pre_basename
 

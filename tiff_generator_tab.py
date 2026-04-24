@@ -79,7 +79,8 @@ def format_fire_id(start_date, lat, lon):
     """
     lat_code = f"{'S' if lat < 0 else 'N'}{int(abs(lat) * 100):04d}"
     lon_code = f"{'W' if lon < 0 else 'E'}{int(abs(lon) * 100):04d}"
-    return f"{start_date}_{lat_code}_{lon_code}"
+    date_ddmmyyyy = f"{start_date[8:10]}-{start_date[5:7]}-{start_date[0:4]}"
+    return f"{date_ddmmyyyy}_{lat_code}_{lon_code}"
 
 
 class FireIgnitionTool(QgsMapToolEmitPoint):
@@ -411,11 +412,11 @@ class TiffGeneratorTab(QWidget):
         #post_path = os.path.join(temp_dir, f"ImgPosF_{end_date}.tif")
 
         results_dir = ensure_results_folder()
-        pre_path = get_unique_filepath(os.path.join(results_dir, f"ImgPreF_{fire_id}.tif"))
-        post_path = get_unique_filepath(os.path.join(results_dir, f"ImgPosF_{fire_id}.tif"))
+        pre_path = get_unique_filepath(os.path.join(results_dir, f"Pre-Fire_{fire_id}.tif"))
+        post_path = get_unique_filepath(os.path.join(results_dir, f"Post-Fire_{fire_id}.tif"))
 
-        pre_layer_name  = "Pre-Fire_"  + os.path.splitext(os.path.basename(pre_path))[0].replace("ImgPreF_", "")
-        post_layer_name = "Post-Fire_" + os.path.splitext(os.path.basename(post_path))[0].replace("ImgPosF_", "")
+        pre_layer_name  = os.path.splitext(os.path.basename(pre_path))[0]
+        post_layer_name = os.path.splitext(os.path.basename(post_path))[0]
 
         print(f"💾 Downloading Images on temporary files: {pre_path} y {post_path}")
 
