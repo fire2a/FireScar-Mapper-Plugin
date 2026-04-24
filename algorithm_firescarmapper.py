@@ -139,30 +139,14 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
         for i, batch in enumerate(all_dl):
             x = batch['img'].float().to(device)
-            feedback.pushInfo(f"Input min: {float(x.min()):.4f}, max: {float(x.max()):.4f}, mean: {float(x.mean()):.4f}")
             output = model(x).cpu()
 
-             # obtain binary prediction map using adaptive threshold
+            # obtain binary prediction map
             output_np = output.detach().numpy()
             pred = np.zeros(output_np.shape)
-            
-            # Use fixed threshold first
-            if output_np.max() >= 0:
-                pred[output_np >= 0] = 1
-            else:
-                # If no pixel reaches 0, use top percentile as threshold
-                threshold = np.percentile(output_np, 85)
-                pred[output_np >= threshold] = 1
-                feedback.pushInfo(f"Adaptive threshold used: {threshold:.4f}")
+            pred[output_np >= 0] = 1
 
             generated_matrix = pred[0][0]
-
-            feedback.pushInfo(f"Input shape: {x.shape}")
-            feedback.pushInfo(f"Output shape: {output.shape}")
-            feedback.pushInfo(f"Output min: {float(output.min()):.4f}, max: {float(output.max()):.4f}")
-            feedback.pushInfo(f"Generated matrix unique values: {np.unique(generated_matrix)}")
-            feedback.pushInfo(f"Generated matrix non-zero count: {np.count_nonzero(generated_matrix)}")
-            feedback.pushInfo(f"Generated matrix shape: {generated_matrix.shape}")
 
             # Derive fire_id from the pre-fire filename (strip ImgPreF_ prefix)
             pre_basename = os.path.splitext(os.path.basename(before_files[i]['not_cropped_path']))[0]
