@@ -31,7 +31,7 @@ class FireScarMapperDialog(QDockWidget):
     def __init__(self, iface, parent=None):
         super().__init__(parent)
         self.iface = iface
-        self.setWindowTitle("Fire Scar Mapper")
+        self.setWindowTitle("  Fire Scar Mapper")
 
         # Layout principal
         main_widget = QWidget()
