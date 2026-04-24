@@ -139,14 +139,31 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
         for i, batch in enumerate(all_dl):
             x = batch['img'].float().to(device)
+            feedback.pushInfo(f"Input min: {float(x.min()):.4f}, max: {float(x.max()):.4f}, mean: {float(x.mean()):.4f}")
             output = model(x).cpu()
 
-            # obtain binary prediction map
-            pred = np.zeros(output.shape)
-            pred[output >= 0] = 1
+             # obtain binary prediction map using adaptive threshold
+            output_np = output.detach().numpy()
+            pred = np.zeros(output_np.shape)
+            
+            # Use fixed threshold first
+            if output_np.max() >= 0:
+                pred[output_np >= 0] = 1
+            else:
+                # If no pixel reaches 0, use top percentile as threshold
+                threshold = np.percentile(output_np, 85)
+                pred[output_np >= threshold] = 1
+                feedback.pushInfo(f"Adaptive threshold used: {threshold:.4f}")
 
             generated_matrix = pred[0][0]
-            
+
+            feedback.pushInfo(f"Input shape: {x.shape}")
+            feedback.pushInfo(f"Output shape: {output.shape}")
+            feedback.pushInfo(f"Output min: {float(output.min()):.4f}, max: {float(output.max()):.4f}")
+            feedback.pushInfo(f"Generated matrix unique values: {np.unique(generated_matrix)}")
+            feedback.pushInfo(f"Generated matrix non-zero count: {np.count_nonzero(generated_matrix)}")
+            feedback.pushInfo(f"Generated matrix shape: {generated_matrix.shape}")
+
             # Derive fire_id from the pre-fire filename (strip ImgPreF_ prefix)
             pre_basename = os.path.splitext(os.path.basename(before_files[i]['not_cropped_path']))[0]
             if pre_basename.startswith("Pre-Fire_"):
@@ -372,20 +389,22 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
         
         # Apply nodata mask from input image to clip output to the circular buffer
-        input_raster = gdal.Open(before_layer["not_cropped_path"])
-        if input_raster is not None:
-            input_band = input_raster.GetRasterBand(1)
-            input_data = input_band.ReadAsArray()
-            input_nodata = input_band.GetNoDataValue()
+        input_raster = None
+        try:
+            input_raster = gdal.Open(before_layer["not_cropped_path"])
+            if input_raster is not None:
+                input_band = input_raster.GetRasterBand(1)
+                input_data = input_band.ReadAsArray()
+                input_nodata = input_band.GetNoDataValue()
+                output_data = band.ReadAsArray()
+                if input_nodata is not None:
+                    mask = (input_data == input_nodata) | np.isinf(input_data)
+                else:
+                    mask = np.isinf(input_data)
+                output_data[mask] = 0
+                gdal_array.BandWriteArray(band, output_data, 0, 0)
+        finally:
             input_raster = None
-
-            output_data = band.ReadAsArray()
-            if input_nodata is not None:
-                mask = (input_data == input_nodata) | np.isinf(input_data)
-            else:
-                mask = np.isinf(input_data)
-            output_data[mask] = 0
-            gdal_array.BandWriteArray(band, output_data, 0, 0)
 
         # Set the NoData value
         band.SetNoDataValue(0)

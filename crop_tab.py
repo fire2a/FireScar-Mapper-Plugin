@@ -157,23 +157,76 @@ class CropImagesTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to crop images:\n{str(e)}")
 
     def _crop_layer(self, layer):
-        """Crop a single layer to crop_rect using GDAL, return output path."""
+        """Crop a single layer to crop_rect, preserving nodata values exactly."""
+        gdal.SetConfigOption('GDAL_TIFF_OVR_BLOCKSIZE', '128')
+
         source_path = layer.source()
         base_name = os.path.splitext(os.path.basename(source_path))[0]
         output_dir = os.path.dirname(source_path)
         output_path = get_unique_filepath(
             os.path.join(output_dir, f"{base_name}_crop.tif")
         )
-        gdal.Warp(
-            output_path,
-            source_path,
-            outputBounds=(
-                self.crop_rect.xMinimum(),
-                self.crop_rect.yMinimum(),
-                self.crop_rect.xMaximum(),
-                self.crop_rect.yMaximum()
+
+        src_ds = None
+        dst_ds = None
+        try:
+            src_ds = gdal.Open(source_path)
+            gt = src_ds.GetGeoTransform()
+            pixel_w = gt[1]
+            pixel_h = abs(gt[5])
+            x_origin = gt[0]
+            y_origin = gt[3]
+
+            # Convert geographic crop_rect to pixel coordinates
+            col_min = int((self.crop_rect.xMinimum() - x_origin) / pixel_w)
+            col_max = int((self.crop_rect.xMaximum() - x_origin) / pixel_w)
+            row_min = int((y_origin - self.crop_rect.yMaximum()) / pixel_h)
+            row_max = int((y_origin - self.crop_rect.yMinimum()) / pixel_h)
+
+            # Clamp to raster bounds
+            col_min = max(0, col_min)
+            row_min = max(0, row_min)
+            col_max = min(src_ds.RasterXSize, col_max)
+            row_max = min(src_ds.RasterYSize, row_max)
+
+            n_cols = col_max - col_min
+            n_rows = row_max - row_min
+
+            if n_cols <= 0 or n_rows <= 0:
+                raise Exception("Crop rectangle does not overlap with the image.")
+
+            new_gt = (
+                x_origin + col_min * pixel_w,
+                pixel_w,
+                0,
+                y_origin - row_min * pixel_h,
+                0,
+                -pixel_h
             )
-        )
+
+            driver = gdal.GetDriverByName('GTiff')
+            n_bands = src_ds.RasterCount
+            src_band = src_ds.GetRasterBand(1)
+            dtype = src_band.DataType
+            nodata = src_band.GetNoDataValue()
+
+            dst_ds = driver.Create(output_path, n_cols, n_rows, n_bands, dtype, options=['BIGTIFF=IF_NEEDED', 'COMPRESS=NONE'])
+            dst_ds.SetGeoTransform(new_gt)
+            dst_ds.SetProjection(src_ds.GetProjection())
+
+            for b in range(1, n_bands + 1):
+                src_band = src_ds.GetRasterBand(b)
+                data = src_band.ReadAsArray(col_min, row_min, n_cols, n_rows)
+                dst_band = dst_ds.GetRasterBand(b)
+                dst_band.WriteArray(data)
+                if nodata is not None:
+                    dst_band.SetNoDataValue(nodata)
+                dst_band.FlushCache()
+
+        finally:
+            dst_ds = None
+            src_ds = None
+
         return output_path
 
     def _add_layer_to_qgis(self, file_path):

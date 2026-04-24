@@ -24,6 +24,7 @@
 
 from qgis.PyQt.QtWidgets import QDockWidget, QTabWidget, QVBoxLayout, QWidget
 from .tiff_generator_tab import TiffGeneratorTab
+from .crop_tab import CropImagesTab
 from .layer_selection_tab import LayerSelectionDialog
 
 
@@ -42,6 +43,8 @@ class FireScarMapperDialog(QDockWidget):
         self.tabs.currentChanged.connect(self.on_tab_changed)
 
         self.tabs.addTab(TiffGeneratorTab(self.iface, self), "Generate Images")
+        self.crop_tab = CropImagesTab(self.iface, self)
+        self.tabs.addTab(self.crop_tab, "Crop Images")
         self.layer_tab = LayerSelectionDialog(self.iface, self)
         self.tabs.addTab(self.layer_tab, "Generate Fire Scar")
 
@@ -56,6 +59,8 @@ class FireScarMapperDialog(QDockWidget):
     def on_tab_changed(self, index):
         # Si es la pestaña 1 (segunda), actualiza los ComboBox
         if index == 1:
+            self.crop_tab.populate_layer_combos()
+        if index == 2:
             self.layer_tab.populate_layer_combos()
 
 
