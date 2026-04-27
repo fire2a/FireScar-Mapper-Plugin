@@ -109,6 +109,18 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         before_files_data = [r['data'] for r in before_files]
         after_files_data = [r['data'] for r in after_files]
 
+        feedback.pushInfo(f"=== IMAGE SOURCE DIAGNOSTICS ===")
+        feedback.pushInfo(f"Before shape: {before_files_data[0].shape}")
+        feedback.pushInfo(f"After shape: {after_files_data[0].shape}")
+        feedback.pushInfo(f"Before B1(Blue)  min:{before_files_data[0][0].min():.4f} max:{before_files_data[0][0].max():.4f} mean:{before_files_data[0][0].mean():.4f}")
+        feedback.pushInfo(f"Before B4(NIR)   min:{before_files_data[0][3].min():.4f} max:{before_files_data[0][3].max():.4f} mean:{before_files_data[0][3].mean():.4f}")
+        feedback.pushInfo(f"Before B6(SWIR2) min:{before_files_data[0][5].min():.4f} max:{before_files_data[0][5].max():.4f} mean:{before_files_data[0][5].mean():.4f}")
+        feedback.pushInfo(f"Before B7(NDVI)  min:{before_files_data[0][6].min():.4f} max:{before_files_data[0][6].max():.4f} mean:{before_files_data[0][6].mean():.4f}")
+        feedback.pushInfo(f"Before B8(NBR)   min:{before_files_data[0][7].min():.4f} max:{before_files_data[0][7].max():.4f} mean:{before_files_data[0][7].mean():.4f}")
+        feedback.pushInfo(f"After  B4(NIR)   min:{after_files_data[0][3].min():.4f} max:{after_files_data[0][3].max():.4f} mean:{after_files_data[0][3].mean():.4f}")
+        feedback.pushInfo(f"After  B8(NBR)   min:{after_files_data[0][7].min():.4f} max:{after_files_data[0][7].max():.4f} mean:{after_files_data[0][7].mean():.4f}")
+        feedback.pushInfo(f"================================")
+
 
         if datatype == "AS":
             model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
@@ -140,6 +152,17 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         for i, batch in enumerate(all_dl):
             x = batch['img'].float().to(device)
             output = model(x).cpu()
+
+            feedback.pushInfo(f"Input shape: {x.shape}")
+            feedback.pushInfo(f"Output min: {float(output.min()):.4f}, max: {float(output.max()):.4f}")
+            feedback.pushInfo(f"Output mean: {float(output.mean()):.4f}")
+            feedback.pushInfo(f"Pixels >= 0: {int((output >= 0).sum())}")
+            feedback.pushInfo(f"Pixels >= -1: {int((output >= -1).sum())}")
+            feedback.pushInfo(f"Pixels >= -2: {int((output >= -2).sum())}")
+            feedback.pushInfo(f"Pixels >= -0.5: {int((output >= -0.5).sum())}")
+            feedback.pushInfo(f"Pixels >= -1.5: {int((output >= -1.5).sum())}")
+            feedback.pushInfo(f"Pixels >= -3: {int((output >= -3).sum())}")
+            feedback.pushInfo(f"Pixels >= -5: {int((output >= -5).sum())}")
 
             # obtain binary prediction map
             output_np = output.detach().numpy()

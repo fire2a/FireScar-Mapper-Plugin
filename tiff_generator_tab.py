@@ -404,8 +404,14 @@ class TiffGeneratorTab(QWidget):
         pref = mosaicpre.mosaic().clip(region)
         postf = mosaicpos.mosaic().clip(region)
 
-        PREImagen = pref.select(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
-        POSImagen = postf.select(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']).toFloat()
+        def scale_to_training_range(image):
+            """Scale reflectance bands to 0-10000 to match training dataset range."""
+            return image.select(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2']).multiply(10000) \
+                .rename(['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2']) \
+                .addBands(image.select(['NDVI', 'NBR']))
+
+        PREImagen = scale_to_training_range(pref).toFloat()
+        POSImagen = scale_to_training_range(postf).toFloat()
         
         #temp_dir = tempfile.gettempdir()
         #pre_path = os.path.join(temp_dir, f"ImgPreF_{start_date}.tif")
