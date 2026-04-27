@@ -1,7 +1,7 @@
 import os
 from osgeo import gdal
 
-from qgis.core import QgsProject, QgsRasterLayer, QgsRectangle
+from qgis.core import QgsProject, QgsRasterLayer, QgsRectangle, QgsPointXY
 from qgis.gui import QgsMapToolEmitPoint
 from qgis.PyQt.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QComboBox, QPushButton, QMessageBox
@@ -10,9 +10,15 @@ from qgis.PyQt.QtCore import Qt
 
 from .tiff_generator_tab import get_unique_filepath
 
+from qgis.gui import QgsMapToolEmitPoint, QgsRubberBand
+from qgis.core import QgsWkbTypes
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QColor
+
 
 class RectangleMapTool(QgsMapToolEmitPoint):
-    """Map tool that captures two clicks to define a crop rectangle."""
+    """Map tool that captures two clicks to define a crop rectangle,
+    showing a live preview rubber band while the user moves the mouse."""
 
     def __init__(self, canvas, on_first_click, on_second_click):
         super().__init__(canvas)
@@ -21,6 +27,12 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.on_second_click = on_second_click
         self.first_point = None
         self.setCursor(Qt.CrossCursor)
+
+        # Rubber band for live rectangle preview
+        self.rubber_band = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
+        self.rubber_band.setColor(QColor(255, 0, 0, 100))
+        self.rubber_band.setFillColor(QColor(255, 0, 0, 30))
+        self.rubber_band.setWidth(2)
 
     def canvasReleaseEvent(self, event):
         point = self.toMapCoordinates(event.pos())
@@ -33,9 +45,25 @@ class RectangleMapTool(QgsMapToolEmitPoint):
             x_max = max(self.first_point.x(), second_point.x())
             y_min = min(self.first_point.y(), second_point.y())
             y_max = max(self.first_point.y(), second_point.y())
+            self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
             self.first_point = None
             self.on_second_click(QgsRectangle(x_min, y_min, x_max, y_max))
 
+    def canvasMoveEvent(self, event):
+        if self.first_point is None:
+            return
+        current_point = self.toMapCoordinates(event.pos())
+        self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+        self.rubber_band.addPoint(self.first_point)
+        self.rubber_band.addPoint(QgsPointXY(current_point.x(), self.first_point.y()))
+        self.rubber_band.addPoint(current_point)
+        self.rubber_band.addPoint(QgsPointXY(self.first_point.x(), current_point.y()))
+        self.rubber_band.addPoint(self.first_point)
+        self.rubber_band.show()
+
+    def deactivate(self):
+        self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+        super().deactivate()
 
 class CropImagesTab(QWidget):
     def __init__(self, iface, parent=None):
