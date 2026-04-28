@@ -29,7 +29,7 @@ from .firescarmapper_dialog import FireScarMapperDialog
 from .resources import *
 import os.path
 from qgis.core import (Qgis, QgsProcessingAlgorithm,QgsProject, QgsRasterLayer, QgsProcessingException, 
-                       QgsSingleBandPseudoColorRenderer, QgsRasterMinMaxOrigin, QgsColorRampShader, QgsRasterShader, QgsStyle, QgsContrastEnhancement)
+                       QgsSingleBandPseudoColorRenderer, QgsRasterMinMaxOrigin, QgsColorRampShader, QgsRasterShader, QgsStyle, QgsContrastEnhancement, QgsWkbTypes)
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 import torch
 from .firescarmapping.model_u_net import model, device
@@ -194,6 +194,14 @@ class FireScarMapper:
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+
+        if hasattr(self, 'dlg') and self.dlg is not None:
+            if hasattr(self.dlg, 'crop_tab'):
+                self.dlg.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+                if self.dlg.crop_tab.map_tool is not None:
+                    self.dlg.crop_tab.map_tool.first_point = None
+                    self.iface.actionPan().trigger()
+
         for action in self.actions:
             self.iface.removePluginMenu(
                 self.tr(u'&Fire Scar Mapper'),
