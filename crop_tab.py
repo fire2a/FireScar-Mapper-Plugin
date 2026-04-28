@@ -69,12 +69,19 @@ class CropImagesTab(QWidget):
         self.map_tool = None
         self.previous_map_tool = None
         self.zone_visible = False
+        self.prev_crop_rect = None
 
         # Single rubber band owned by the tab, not by the map tool
         self.rubber_band = QgsRubberBand(iface.mapCanvas(), QgsWkbTypes.PolygonGeometry)
         self.rubber_band.setColor(QColor(255, 0, 0, 100))
         self.rubber_band.setFillColor(QColor(255, 0, 0, 30))
         self.rubber_band.setWidth(2)
+
+        # Secondary rubber band to show previous zone while redefining
+        self.prev_rubber_band = QgsRubberBand(iface.mapCanvas(), QgsWkbTypes.PolygonGeometry)
+        self.prev_rubber_band.setColor(QColor(255, 0, 0, 75))
+        self.prev_rubber_band.setFillColor(QColor(255, 0, 0, 20))
+        self.prev_rubber_band.setWidth(2)
 
         # Pre-fire selector
         self.pre_fire_label = QLabel("Pre-Fire Image:")
@@ -145,6 +152,18 @@ class CropImagesTab(QWidget):
     def start_define_zone(self):
         """Activate map tool to capture two corners of the crop rectangle."""
         self.crop_button.setEnabled(False)
+
+        # Show previous zone as faded reference while redefining
+        if self.crop_rect is not None:
+            self.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.prev_rubber_band.addPoint(QgsPointXY(self.crop_rect.xMinimum(), self.crop_rect.yMaximum()))
+            self.prev_rubber_band.addPoint(QgsPointXY(self.crop_rect.xMaximum(), self.crop_rect.yMaximum()))
+            self.prev_rubber_band.addPoint(QgsPointXY(self.crop_rect.xMaximum(), self.crop_rect.yMinimum()))
+            self.prev_rubber_band.addPoint(QgsPointXY(self.crop_rect.xMinimum(), self.crop_rect.yMinimum()))
+            self.prev_rubber_band.addPoint(QgsPointXY(self.crop_rect.xMinimum(), self.crop_rect.yMaximum()))
+            self.prev_rubber_band.show()
+
+        self.prev_crop_rect = self.crop_rect  # save previous valid rect
         self.crop_rect = None
         self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
 
@@ -168,6 +187,7 @@ class CropImagesTab(QWidget):
     def clear_zone(self):
         """Clear the defined crop zone and reset the rubber band."""
         self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+        self.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
         self.crop_rect = None
         self.zone_visible = False
         self.show_zone_button.setText("👁 Show Zone")
@@ -216,14 +236,39 @@ class CropImagesTab(QWidget):
         self.show_zone_button.setEnabled(True)
         self.zone_visible = True
         self.show_zone_button.setText("🚫 Hide Zone")
+        self.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
         if self.previous_map_tool:
             self.iface.mapCanvas().setMapTool(self.previous_map_tool)
         else:
             self.iface.actionPan().trigger()
 
     def on_zone_cancelled(self):
-        self.zone_label.setText("Zone definition cancelled. Click 'Define Crop Zone' to try again.")
-        self.zone_label.setStyleSheet("color: orange; font-style: italic;")
+        if self.prev_crop_rect is not None:
+            self.crop_rect = self.prev_crop_rect
+            r = self.prev_crop_rect
+            self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMaximum()))
+            self.rubber_band.addPoint(QgsPointXY(r.xMaximum(), r.yMaximum()))
+            self.rubber_band.addPoint(QgsPointXY(r.xMaximum(), r.yMinimum()))
+            self.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMinimum()))
+            self.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMaximum()))
+            self.rubber_band.show()
+            self.zone_visible = True
+            self.show_zone_button.setText("🚫 Hide Zone")
+            self.crop_button.setEnabled(True)
+            self.clear_zone_button.setEnabled(True)
+            self.show_zone_button.setEnabled(True)
+            r = self.crop_rect
+            self.zone_label.setText(
+                f"Zone defined:\n"
+                f"({r.xMinimum():.4f}, {r.yMinimum():.4f}) → "
+                f"({r.xMaximum():.4f}, {r.yMaximum():.4f})"
+            )
+            self.zone_label.setStyleSheet("color: green; font-style: italic;")
+        else:
+            self.zone_label.setText("Zone definition cancelled. Click 'Define Crop Zone' to try again.")
+            self.zone_label.setStyleSheet("color: orange; font-style: italic;")
+        self.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
         self.iface.actionPan().trigger()
 
     def crop_images(self):
@@ -249,6 +294,7 @@ class CropImagesTab(QWidget):
             self._add_layer_to_qgis(pre_output)
             self._add_layer_to_qgis(post_output)
             self.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
             self.crop_rect = None
             self.zone_visible = False
             self.show_zone_button.setText("👁 Show Zone")

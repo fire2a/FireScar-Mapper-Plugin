@@ -67,10 +67,21 @@ class FireScarMapperDialog(QDockWidget):
     def closeEvent(self, event):
         if hasattr(self, 'crop_tab'):
             self.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.crop_tab.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
             self.crop_tab.zone_visible = False
             self.crop_tab.show_zone_button.setText("👁 Show Zone")
             if self.crop_tab.map_tool is not None:
-                if self.crop_tab.map_tool.first_point is not None:
+                if self.crop_tab.crop_rect is None and self.crop_tab.prev_crop_rect is not None:
+                    # Restore previous valid rectangle
+                    self.crop_tab.crop_rect = self.crop_tab.prev_crop_rect
+                    r = self.crop_tab.prev_crop_rect
+                    self.crop_tab.zone_label.setText(
+                        f"Zone defined:\n"
+                        f"({r.xMinimum():.4f}, {r.yMinimum():.4f}) → "
+                        f"({r.xMaximum():.4f}, {r.yMaximum():.4f})"
+                    )
+                    self.crop_tab.zone_label.setStyleSheet("color: green; font-style: italic;")
+                elif self.crop_tab.map_tool.first_point is not None:
                     self.crop_tab.map_tool.first_point = None
                     self.crop_tab.zone_label.setText("No zone defined")
                     self.crop_tab.zone_label.setStyleSheet("color: gray; font-style: italic;")

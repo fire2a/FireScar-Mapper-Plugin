@@ -198,6 +198,7 @@ class FireScarMapper:
         if hasattr(self, 'dlg') and self.dlg is not None:
             if hasattr(self.dlg, 'crop_tab'):
                 self.dlg.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+                self.dlg.crop_tab.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
                 if self.dlg.crop_tab.map_tool is not None:
                     self.dlg.crop_tab.map_tool.first_point = None
                     self.iface.actionPan().trigger()
