@@ -8,7 +8,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.PyQt.QtCore import Qt
 
-from .tiff_generator_tab import get_unique_filepath
+from .tiff_generator_tab import get_unique_filepath, set_band_names
 
 from qgis.gui import QgsMapToolEmitPoint, QgsRubberBand
 from qgis.core import QgsWkbTypes
@@ -254,6 +254,10 @@ class CropImagesTab(QWidget):
         finally:
             dst_ds = None
             src_ds = None
+
+        # Preserve band names from source layer
+        band_names = [layer.bandName(b).split(': ')[-1] for b in range(1, layer.bandCount() + 1)]
+        set_band_names(output_path, band_names)
 
         return output_path
 
