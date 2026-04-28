@@ -149,18 +149,9 @@ class TiffGeneratorTab(QWidget):
         layout.addWidget(self.label_area)
         layout.addWidget(self.area_input)
         layout.addWidget(self.btn_generate)
+        layout.addStretch()
 
-        container = QtWidgets.QWidget()
-        container.setLayout(layout)
-        
-        #self.setWidget(container)
-        #layout = QtWidgets.QVBoxLayout(self)
-        #self.setLayout(layout)
-        #layout.addWidget(container)
-
-        main_layout = QtWidgets.QVBoxLayout(self)
-        self.setLayout(main_layout)
-        main_layout.addWidget(container)
+        self.setLayout(layout)
 
         self.ignition_point = None
         self.ee_initialize()
