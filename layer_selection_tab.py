@@ -57,7 +57,7 @@ class LayerSelectionDialog(QWidget):
         self.refresh_button.clicked.connect(self.populate_layer_combos)
 
         # execute process button
-        self.run_button = QPushButton("Generate Fire Scar")
+        self.run_button = QPushButton("🔥 Generate Fire Scar")
         self.run_button.clicked.connect(self.run_fire_scar_mapping)
 
         # left layout: image selector and text fields

@@ -115,7 +115,7 @@ class TiffGeneratorTab(QWidget):
 
         # Punto de ignición
         self.label_point = QtWidgets.QLabel("Ignition Point: Not Selected")
-        self.btn_select_point = QtWidgets.QPushButton("Select an Ignition Point on the Map")
+        self.btn_select_point = QtWidgets.QPushButton("📍 Select an Ignition Point on the Map")
         self.btn_select_point.clicked.connect(self.select_point)
 
         # Fechas
@@ -136,7 +136,7 @@ class TiffGeneratorTab(QWidget):
         self.area_input.setSuffix(" ha")
 
         # Botón para generar el TIFF
-        self.btn_generate = QtWidgets.QPushButton("Generate Pre and Post Fire Tiff Images")
+        self.btn_generate = QtWidgets.QPushButton("🛰️ Generate Pre and Post Fire Tiff Images")
         self.btn_generate.clicked.connect(self.generate_tiff)
 
         # Agregar widgets al layout

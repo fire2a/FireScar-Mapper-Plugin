@@ -112,7 +112,7 @@ class CropImagesTab(QWidget):
         self.zone_label.setWordWrap(True)
 
         # Crop button
-        self.crop_button = QPushButton("Crop Images")
+        self.crop_button = QPushButton("✂️ Crop Images")
         self.crop_button.setEnabled(False)
         self.crop_button.clicked.connect(self.crop_images)
         
@@ -194,7 +194,7 @@ class CropImagesTab(QWidget):
             self.rubber_band.addPoint(QgsPointXY(self.crop_rect.xMinimum(), self.crop_rect.yMaximum()))
             self.rubber_band.show()
             self.zone_visible = True
-            self.show_zone_button.setText("🙈 Hide Zone")
+            self.show_zone_button.setText("🚫 Hide Zone")
 
     def on_first_click(self, point):
         self.zone_label.setText(
@@ -215,7 +215,7 @@ class CropImagesTab(QWidget):
         self.clear_zone_button.setEnabled(True)
         self.show_zone_button.setEnabled(True)
         self.zone_visible = True
-        self.show_zone_button.setText("🙈 Hide Zone")
+        self.show_zone_button.setText("🚫 Hide Zone")
         if self.previous_map_tool:
             self.iface.mapCanvas().setMapTool(self.previous_map_tool)
         else:
