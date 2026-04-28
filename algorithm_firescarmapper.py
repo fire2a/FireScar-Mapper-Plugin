@@ -39,7 +39,7 @@ from torch.utils.data import DataLoader
 import os
 from osgeo import gdal, gdal_array
 import requests
-
+from qgis.PyQt.QtWidgets import QMessageBox
 
 class ProcessingAlgorithm(QgsProcessingAlgorithm):    
     def main(self, parameters, context, feedback):
@@ -109,6 +109,18 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         before_files_data = [r['data'] for r in before_files]
         after_files_data = [r['data'] for r in after_files]
 
+        feedback.pushInfo(f"=== IMAGE SOURCE DIAGNOSTICS ===")
+        feedback.pushInfo(f"Before shape: {before_files_data[0].shape}")
+        feedback.pushInfo(f"After shape: {after_files_data[0].shape}")
+        feedback.pushInfo(f"Before B1(Blue)  min:{before_files_data[0][0].min():.4f} max:{before_files_data[0][0].max():.4f} mean:{before_files_data[0][0].mean():.4f}")
+        feedback.pushInfo(f"Before B4(NIR)   min:{before_files_data[0][3].min():.4f} max:{before_files_data[0][3].max():.4f} mean:{before_files_data[0][3].mean():.4f}")
+        feedback.pushInfo(f"Before B6(SWIR2) min:{before_files_data[0][5].min():.4f} max:{before_files_data[0][5].max():.4f} mean:{before_files_data[0][5].mean():.4f}")
+        feedback.pushInfo(f"Before B7(NDVI)  min:{before_files_data[0][6].min():.4f} max:{before_files_data[0][6].max():.4f} mean:{before_files_data[0][6].mean():.4f}")
+        feedback.pushInfo(f"Before B8(NBR)   min:{before_files_data[0][7].min():.4f} max:{before_files_data[0][7].max():.4f} mean:{before_files_data[0][7].mean():.4f}")
+        feedback.pushInfo(f"After  B4(NIR)   min:{after_files_data[0][3].min():.4f} max:{after_files_data[0][3].max():.4f} mean:{after_files_data[0][3].mean():.4f}")
+        feedback.pushInfo(f"After  B8(NBR)   min:{after_files_data[0][7].min():.4f} max:{after_files_data[0][7].max():.4f} mean:{after_files_data[0][7].mean():.4f}")
+        feedback.pushInfo(f"================================")
+
 
         if datatype == "AS":
             model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
@@ -141,12 +153,24 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             x = batch['img'].float().to(device)
             output = model(x).cpu()
 
+            feedback.pushInfo(f"Input shape: {x.shape}")
+            feedback.pushInfo(f"Output min: {float(output.min()):.4f}, max: {float(output.max()):.4f}")
+            feedback.pushInfo(f"Output mean: {float(output.mean()):.4f}")
+            feedback.pushInfo(f"Pixels >= 0: {int((output >= 0).sum())}")
+            feedback.pushInfo(f"Pixels >= -1: {int((output >= -1).sum())}")
+            feedback.pushInfo(f"Pixels >= -2: {int((output >= -2).sum())}")
+            feedback.pushInfo(f"Pixels >= -0.5: {int((output >= -0.5).sum())}")
+            feedback.pushInfo(f"Pixels >= -1.5: {int((output >= -1.5).sum())}")
+            feedback.pushInfo(f"Pixels >= -3: {int((output >= -3).sum())}")
+            feedback.pushInfo(f"Pixels >= -5: {int((output >= -5).sum())}")
+
             # obtain binary prediction map
-            pred = np.zeros(output.shape)
-            pred[output >= 0] = 1
+            output_np = output.detach().numpy()
+            pred = np.zeros(output_np.shape)
+            pred[output_np >= 0] = 1
 
             generated_matrix = pred[0][0]
-            
+
             # Derive fire_id from the pre-fire filename (strip ImgPreF_ prefix)
             pre_basename = os.path.splitext(os.path.basename(before_files[i]['not_cropped_path']))[0]
             if pre_basename.startswith("Pre-Fire_"):
@@ -162,7 +186,8 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             scar_layer_name = os.path.splitext(os.path.basename(output_path))[0]
 
             self.writeRaster(generated_matrix, output_path, before_files[i], feedback)
-            self.addRasterLayer(output_path, scar_layer_name, context)
+            if os.path.exists(output_path):
+                self.addRasterLayer(output_path, scar_layer_name, context)
         return {}
         
     def get_unique_filepath(self, base_path):
@@ -328,7 +353,18 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
 
     def writeRaster(self, matrix, file_path, before_layer, feedback):
         if np.count_nonzero(matrix) == 0:
-            raise QgsProcessingException("The generated fire scar matrix is empty. No valid pixels were found.")
+            feedback.pushInfo("⚠️ Warning: The model did not detect any burned area in this image.")
+            QMessageBox.warning(
+                None,
+                "No Burned Area Detected",
+                "The model did not detect any burned area in this image.\n\n"
+                "This may occur because:\n"
+                "• The fire is outside the model's training region (Biobío and Valparaíso, Chile)\n"
+                "• The vegetation type differs from the training data (forest/shrubland)\n"
+                "• The image does not show a clear spectral difference between pre and post-fire\n\n"
+                "The output raster has been generated but will appear empty."
+            )
+            return
         # Get the dimensions of the raster before the fire
         width = before_layer["width"]
         height = before_layer["height"]
@@ -372,20 +408,22 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
         
         # Apply nodata mask from input image to clip output to the circular buffer
-        input_raster = gdal.Open(before_layer["not_cropped_path"])
-        if input_raster is not None:
-            input_band = input_raster.GetRasterBand(1)
-            input_data = input_band.ReadAsArray()
-            input_nodata = input_band.GetNoDataValue()
+        input_raster = None
+        try:
+            input_raster = gdal.Open(before_layer["not_cropped_path"])
+            if input_raster is not None:
+                input_band = input_raster.GetRasterBand(1)
+                input_data = input_band.ReadAsArray()
+                input_nodata = input_band.GetNoDataValue()
+                output_data = band.ReadAsArray()
+                if input_nodata is not None:
+                    mask = (input_data == input_nodata) | np.isinf(input_data)
+                else:
+                    mask = np.isinf(input_data)
+                output_data[mask] = 0
+                gdal_array.BandWriteArray(band, output_data, 0, 0)
+        finally:
             input_raster = None
-
-            output_data = band.ReadAsArray()
-            if input_nodata is not None:
-                mask = (input_data == input_nodata) | np.isinf(input_data)
-            else:
-                mask = np.isinf(input_data)
-            output_data[mask] = 0
-            gdal_array.BandWriteArray(band, output_data, 0, 0)
 
         # Set the NoData value
         band.SetNoDataValue(0)

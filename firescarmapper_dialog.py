@@ -23,7 +23,9 @@
 """
 
 from qgis.PyQt.QtWidgets import QDockWidget, QTabWidget, QVBoxLayout, QWidget
+from qgis.core import QgsWkbTypes, QgsPointXY
 from .tiff_generator_tab import TiffGeneratorTab
+from .crop_tab import CropImagesTab
 from .layer_selection_tab import LayerSelectionDialog
 
 
@@ -42,6 +44,8 @@ class FireScarMapperDialog(QDockWidget):
         self.tabs.currentChanged.connect(self.on_tab_changed)
 
         self.tabs.addTab(TiffGeneratorTab(self.iface, self), "Generate Images")
+        self.crop_tab = CropImagesTab(self.iface, self)
+        self.tabs.addTab(self.crop_tab, "Crop Images")
         self.layer_tab = LayerSelectionDialog(self.iface, self)
         self.tabs.addTab(self.layer_tab, "Generate Fire Scar")
 
@@ -54,8 +58,63 @@ class FireScarMapperDialog(QDockWidget):
         self.setWidget(main_widget)
     
     def on_tab_changed(self, index):
-        # Si es la pestaña 1 (segunda), actualiza los ComboBox
+        # If leaving crop tab while in zone definition mode, cancel it
+        if hasattr(self, 'crop_tab') and self.crop_tab.map_tool is not None:
+            if self.crop_tab.map_tool.first_point is not None:
+                # Was in the middle of defining — restore previous valid rect if exists
+                self.crop_tab.map_tool.first_point = None
+                self.crop_tab.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+                if self.crop_tab.prev_crop_rect is not None:
+                    self.crop_tab.crop_rect = self.crop_tab.prev_crop_rect
+                    r = self.crop_tab.prev_crop_rect
+                    self.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+                    self.crop_tab.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMaximum()))
+                    self.crop_tab.rubber_band.addPoint(QgsPointXY(r.xMaximum(), r.yMaximum()))
+                    self.crop_tab.rubber_band.addPoint(QgsPointXY(r.xMaximum(), r.yMinimum()))
+                    self.crop_tab.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMinimum()))
+                    self.crop_tab.rubber_band.addPoint(QgsPointXY(r.xMinimum(), r.yMaximum()))
+                    self.crop_tab.rubber_band.show()
+                    self.crop_tab.zone_visible = True
+                    self.crop_tab.show_zone_button.setText("🚫 Hide Zone")
+                    r = self.crop_tab.crop_rect
+                    self.crop_tab.zone_label.setText(
+                        f"Zone defined:\n"
+                        f"({r.xMinimum():.4f}, {r.yMinimum():.4f}) → "
+                        f"({r.xMaximum():.4f}, {r.yMaximum():.4f})"
+                    )
+                    self.crop_tab.zone_label.setStyleSheet("color: green; font-style: italic;")
+                else:
+                    self.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+                    self.crop_tab.zone_label.setText("No zone defined")
+                    self.crop_tab.zone_label.setStyleSheet("color: gray; font-style: italic;")
+                self.iface.actionPan().trigger()
+
         if index == 1:
+            self.crop_tab.populate_layer_combos()
+        if index == 2:
             self.layer_tab.populate_layer_combos()
 
+    def closeEvent(self, event):
+        if hasattr(self, 'crop_tab'):
+            self.crop_tab.rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.crop_tab.prev_rubber_band.reset(QgsWkbTypes.PolygonGeometry)
+            self.crop_tab.zone_visible = False
+            self.crop_tab.show_zone_button.setText("👁 Show Zone")
+            if self.crop_tab.map_tool is not None:
+                if self.crop_tab.crop_rect is None and self.crop_tab.prev_crop_rect is not None:
+                    # Restore previous valid rectangle
+                    self.crop_tab.crop_rect = self.crop_tab.prev_crop_rect
+                    r = self.crop_tab.prev_crop_rect
+                    self.crop_tab.zone_label.setText(
+                        f"Zone defined:\n"
+                        f"({r.xMinimum():.4f}, {r.yMinimum():.4f}) → "
+                        f"({r.xMaximum():.4f}, {r.yMaximum():.4f})"
+                    )
+                    self.crop_tab.zone_label.setStyleSheet("color: green; font-style: italic;")
+                elif self.crop_tab.map_tool.first_point is not None:
+                    self.crop_tab.map_tool.first_point = None
+                    self.crop_tab.zone_label.setText("No zone defined")
+                    self.crop_tab.zone_label.setStyleSheet("color: gray; font-style: italic;")
+                self.iface.actionPan().trigger()
+        super().closeEvent(event)
 

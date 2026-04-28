@@ -40,11 +40,13 @@ class LayerSelectionDialog(QWidget):
         # Text field to show selected routes of PreFire Images
         self.pre_fire_display = QTextEdit(self)
         self.pre_fire_display.setReadOnly(True)
+        self.pre_fire_display.setFixedHeight(45)
         self.pre_fire_display.setPlaceholderText("Pre-fire images will be displayed here...")
 
-         # Text field to show selected routes of PostFire Images
+        # Text field to show selected routes of PostFire Images
         self.post_fire_display = QTextEdit(self)
         self.post_fire_display.setReadOnly(True)
+        self.post_fire_display.setFixedHeight(45)
         self.post_fire_display.setPlaceholderText("Post-fire images will be displayed here...")
 
         # Model scale selector (AS o 128)
@@ -57,7 +59,7 @@ class LayerSelectionDialog(QWidget):
         self.refresh_button.clicked.connect(self.populate_layer_combos)
 
         # execute process button
-        self.run_button = QPushButton("Generate Fire Scar")
+        self.run_button = QPushButton("🔥 Generate Fire Scar")
         self.run_button.clicked.connect(self.run_fire_scar_mapping)
 
         # left layout: image selector and text fields
@@ -77,6 +79,7 @@ class LayerSelectionDialog(QWidget):
         left_layout.addWidget(self.scale_combo)
 
         left_layout.addWidget(self.run_button)
+        left_layout.addStretch()
 
         # Principal layout
         main_layout = QHBoxLayout()
