@@ -132,9 +132,27 @@ class TiffGeneratorTab(QWidget):
         # Área o longitud del recuadro
         self.label_area = QtWidgets.QLabel("Estimated Area of the Wildfire (ha):")
         self.area_input = QtWidgets.QDoubleSpinBox()
-        self.area_input.setRange(0, 1000000)
+        self.area_input.setRange(0, 100000)
         self.area_input.setSuffix(" ha")
-
+        self.area_input.setToolTip(
+            "Estimated size of the fire in hectares.\n"
+            "Used to calculate the image extent around the ignition point.\n"
+            "Values above 1,275 ha will be automatically adjusted to avoid\n"
+            "exceeding Google Earth Engine's download limits."
+        )
+        
+        # Checkbox para búsqueda extendida
+        self.extended_search_checkbox = QtWidgets.QCheckBox(
+            "Include images from 1 year before fire (350–470 days prior)"
+        )
+        self.extended_search_checkbox.setToolTip(
+            "When checked, also searches for pre-fire images between\n"
+            "350 and 470 days before the fire start date.\n"
+            "Use this if the default 180-day window does not provide\n"
+            "enough cloud-free images."
+        )
+        
+        
         # Botón para generar el TIFF
         self.btn_generate = QtWidgets.QPushButton("🛰️ Generate Pre and Post Fire Tiff Images")
         self.btn_generate.clicked.connect(self.generate_tiff)
@@ -148,6 +166,7 @@ class TiffGeneratorTab(QWidget):
         layout.addWidget(self.end_date)
         layout.addWidget(self.label_area)
         layout.addWidget(self.area_input)
+        layout.addWidget(self.extended_search_checkbox)
         layout.addWidget(self.btn_generate)
         layout.addStretch()
 
@@ -216,15 +235,27 @@ class TiffGeneratorTab(QWidget):
                 "A value of 0 would generate a buffer too small to capture the fire scar."
             )
             return
+        
+        area_value = self.area_input.value()
+        if area_value > 1275:
+            area_value = 1275
+            QMessageBox.information(
+                self,
+                "Area Adjusted",
+                "The entered value exceeds the maximum input accepted by the buffer calculation (1,275 ha).\n\n"
+                "The value has been automatically adjusted to 1,275 ha. The generated image will still\n"
+                "cover an area larger than 1,275 hectares due to the buffer amplification factor.\n\n"
+                "If the fire scar is not fully captured, try regenerating the images with\n"
+                "a different ignition point closer to the center of the scar."
+            )
 
         start_date_str = start_date.toString("yyyy-MM-dd")
         end_date_str = end_date.toString("yyyy-MM-dd")
-        buffer_distance = self.area_input.value() * 100
         print("🚀 Iniciating Pre and Post-Fire Image generation...")
 
         lat = self.ignition_point.y()
         lon = self.ignition_point.x()
-        self.get_fire_images(start_date_str, end_date_str, buffer_distance, lat, lon)
+        self.get_fire_images(start_date_str, end_date_str, area_value, lat, lon)
 
     def applyScaleFactors(self, image):
         """
@@ -353,47 +384,69 @@ class TiffGeneratorTab(QWidget):
         """
         return image.set('time_start', image.get('system:time_start'))
 
-    def get_fire_images(self, start_date, end_date, buffer_distance, lat, lon):
+    def get_fire_images(self, start_date, end_date, area, lat, lon):
         fire_id = format_fire_id(start_date, lat, lon)
-        area = max(self.area_input.value(), 0.0001)  
+        area = max(area, 0.0001)  
         buffer_size = ee.Number(area).log().multiply(2000).max(3000) 
         buffer_size = ee.Number(163673.1).multiply(ee.Number(1).subtract(ee.Number(-0.001157413).multiply(ee.Number(area).pow(0.5259879)).exp()))  
         buffer_size = buffer_size.multiply(1.5)
         region = ee.Geometry.Point([self.ignition_point.x(), self.ignition_point.y()]).buffer(buffer_size)
+            
+        pre_end = ee.Date(start_date).advance(-1, 'day')
+        pre_start = ee.Date(start_date).advance(-180, 'day')
+        post_end = ee.Date(end_date).advance(180, 'day')
 
-        #buffer_size = 1920  # Fixed buffer size: 64 Landsat pixels
-        #region = ee.Geometry.Point([self.ignition_point.x(), self.ignition_point.y()]).buffer(buffer_size)
+        def prepare_collection(collection, sensor, date_start, date_end):
+            return collection\
+                .filterBounds(region)\
+                .filterDate(date_start, date_end)\
+                .map(self.applyScaleFactors)\
+                .map(self.harmonizeBands)\
+                .map(self.maskClouds)\
+                .map(lambda img: self.get_INDEX(img, sensor))\
+                .map(lambda img: self.renameBands(img, sensor))
+
+        L5_pre = prepare_collection(ee.ImageCollection('LANDSAT/LT05/C02/T1_L2'), 'L5', pre_start, pre_end)
+        L7_pre = prepare_collection(ee.ImageCollection('LANDSAT/LE07/C02/T1_L2').filterDate('1999-01-01', '2003-05-31'), 'L7', pre_start, pre_end)
+        L8_pre = prepare_collection(ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'), 'L8', pre_start, pre_end)
+        L9_pre = prepare_collection(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'), 'L9', pre_start, pre_end)
+
+        if self.extended_search_checkbox.isChecked():
+            ext_start = ee.Date(start_date).advance(-470, 'day')
+            ext_end = ee.Date(start_date).advance(-350, 'day')
+
+            L5_pre_ext = prepare_collection(ee.ImageCollection('LANDSAT/LT05/C02/T1_L2'), 'L5', ext_start, ext_end)
+            L7_pre_ext = prepare_collection(ee.ImageCollection('LANDSAT/LE07/C02/T1_L2').filterDate('1999-01-01', '2003-05-31'), 'L7', ext_start, ext_end)
+            L8_pre_ext = prepare_collection(ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'), 'L8', ext_start, ext_end)
+            L9_pre_ext = prepare_collection(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'), 'L9', ext_start, ext_end)
+
+            L5_pre = L5_pre.merge(L5_pre_ext)
+            L7_pre = L7_pre.merge(L7_pre_ext)
+            L8_pre = L8_pre.merge(L8_pre_ext)
+            L9_pre = L9_pre.merge(L9_pre_ext)
+
+        L5_pos = prepare_collection(ee.ImageCollection('LANDSAT/LT05/C02/T1_L2'), 'L5', ee.Date(end_date), post_end)
+        L7_pos = prepare_collection(ee.ImageCollection('LANDSAT/LE07/C02/T1_L2').filterDate('1999-01-01', '2003-05-31'), 'L7', ee.Date(end_date), post_end)
+        L8_pos = prepare_collection(ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'), 'L8', ee.Date(end_date), post_end)
+        L9_pos = prepare_collection(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'), 'L9', ee.Date(end_date), post_end)
+
+        mosaicpre = L5_pre.merge(L7_pre).merge(L8_pre).merge(L9_pre)\
+            .map(lambda img: self.adddate(img))\
+            .sort('system:time_start', True)
+
+        mosaicpos = L5_pos.merge(L7_pos).merge(L8_pos).merge(L9_pos)\
+            .map(lambda img: self.adddate(img))\
+            .sort('system:time_start', False)
         
-        
-
-        L5_col = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2') \
-            .map(self.applyScaleFactors).map(self.harmonizeBands).map(self.maskClouds) \
-            .map(lambda img: self.get_INDEX(img, 'L5')) \
-            .map(lambda img: self.renameBands(img, 'L5'))
-
-        L7_col = ee.ImageCollection('LANDSAT/LE07/C02/T1_L2') \
-            .filterDate('1999-01-01', '2003-05-31') \
-            .map(self.applyScaleFactors).map(self.harmonizeBands).map(self.maskClouds) \
-            .map(lambda img: self.get_INDEX(img, 'L7')) \
-            .map(lambda img: self.renameBands(img, 'L7'))
-
-        L8_col = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
-            .map(self.applyScaleFactors).map(self.harmonizeBands).map(self.maskClouds) \
-            .map(lambda img: self.get_INDEX(img, 'L8')) \
-            .map(lambda img: self.renameBands(img, 'L8'))
-
-        L9_col = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
-            .map(self.applyScaleFactors).map(self.harmonizeBands).map(self.maskClouds) \
-            .map(lambda img: self.get_INDEX(img, 'L9')) \
-            .map(lambda img: self.renameBands(img, 'L9'))
-
-        sat = L5_col.merge(L7_col).merge(L8_col).merge(L9_col)
-
-        mosaicpre = sat.filterBounds(region).filterDate(ee.Date(start_date).advance(-365, 'day'), ee.Date(start_date)).map(lambda img: self.adddate(img)).sort('system:time_start', True)
-        mosaicpos = sat.filterBounds(region).filterDate(ee.Date(end_date), ee.Date(end_date).advance(180, 'day')).map(lambda img: self.adddate(img)).sort('system:time_start', False)
 
         pref = mosaicpre.mosaic().clip(region)
         postf = mosaicpos.mosaic().clip(region)
+
+        print(f"Pre-fire collection size: {L8_pre.size().getInfo()}")
+        print(f"Post-fire collection size: {L8_pos.size().getInfo()}")
+        print(f"Pre-fire ALL sensors size: {L5_pre.merge(L7_pre).merge(L8_pre).merge(L9_pre).size().getInfo()}")
+        print(f"Post-fire ALL sensors size: {L5_pos.merge(L7_pos).merge(L8_pos).merge(L9_pos).size().getInfo()}")
+        
 
         def scale_to_training_range(image):
             """Scale reflectance bands to 0-10000 to match training dataset range."""
@@ -403,10 +456,6 @@ class TiffGeneratorTab(QWidget):
 
         PREImagen = scale_to_training_range(pref).toFloat()
         POSImagen = scale_to_training_range(postf).toFloat()
-        
-        #temp_dir = tempfile.gettempdir()
-        #pre_path = os.path.join(temp_dir, f"ImgPreF_{start_date}.tif")
-        #post_path = os.path.join(temp_dir, f"ImgPosF_{end_date}.tif")
 
         results_dir = ensure_results_folder()
         pre_path = get_unique_filepath(os.path.join(results_dir, f"Pre-Fire_{fire_id}.tif"))
@@ -445,7 +494,8 @@ class TiffGeneratorTab(QWidget):
                 print(f"✅ Image Downloaded: {output_path}")
                 return True
             else:
-                print(f"⚠️ Error at downloading the image: {url}")
+                print(f"⚠️ Error status code: {response.status_code}")
+                print(f"⚠️ Error response: {response.text[:500]}")
                 return False
         
         success_pre = download_image(pre_url, pre_path)
@@ -453,17 +503,27 @@ class TiffGeneratorTab(QWidget):
 
         band_names = ['R', 'G', 'B', 'NIR', 'SWIR1', 'SWIR2', 'NDVI', 'NBR']
 
-        if success_pre:
-            set_band_names(pre_path, band_names)
-
-        if success_post:
-            set_band_names(post_path, band_names)
-
         if success_pre and success_post:
+            set_band_names(pre_path, band_names)
+            set_band_names(post_path, band_names)
             self.add_raster_to_qgis(pre_path, pre_layer_name)
             self.add_raster_to_qgis(post_path, post_layer_name)
-
-        print("✅ Temporal Imagees download complete and added to QGIS.")
+            print("✅ Images download complete and added to QGIS.")
+        else:
+            # Clean up any partial downloads
+            if os.path.exists(pre_path):
+                os.remove(pre_path)
+            if os.path.exists(post_path):
+                os.remove(post_path)
+            failed = "Pre-Fire" if not success_pre else "Post-Fire"
+            raise Exception(
+                f"{failed} image download failed.\n\n"
+                "This may be caused by:\n"
+                "• The estimated area is too large for Google Earth Engine\n"
+                "• No satellite imagery available for this date range\n"
+                "• Network connection issues\n\n"
+                "Try reducing the estimated area or adjusting the dates."
+            )
 
     def add_raster_to_qgis(self, file_path, layer_name):
         """
