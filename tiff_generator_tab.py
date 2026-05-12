@@ -93,6 +93,12 @@ class FireIgnitionTool(QgsMapToolEmitPoint):
         print("🔥 FireIgnitionTool Activated. Click on the map to select an ignition point.")
 
     def canvasReleaseEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.canvas.unsetMapTool(self)
+            self.iface.actionPan().trigger()
+            print("🔄 Ignition point selection cancelled.")
+            return
+
         point = self.toMapCoordinates(event.pos())
         if point:
             print(f"📍 Ignition Point Selected: {point.x()}, {point.y()}")
@@ -101,7 +107,7 @@ class FireIgnitionTool(QgsMapToolEmitPoint):
             print("🔄 Tool deactivated after the selection.")
         else:
             print("⚠️ Ignition Point couldn't be obtained.")
-
+            
 class TiffGeneratorTab(QWidget):
     #closingPlugin = pyqtSignal()
 
