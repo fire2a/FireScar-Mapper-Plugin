@@ -1,7 +1,8 @@
 [general]
 enabled = True
 
-plugin_dependency_1 = torch==2.3.1
+plugin_dependency_1 = torch==2.2.2
 plugin_dependency_2 = earthengine-api==0.1.388
-plugin_dependency_3 = torchvision==0.18.1
-plugin_dependency_4 = numpy==2.0.2
+plugin_dependency_3 = torchvision==0.17.2
+plugin_dependency_4 = numpy==1.26.4
+plugin_dependency_5 = scipy==1.14.1
